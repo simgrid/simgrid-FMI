@@ -1,0 +1,4 @@
+[submodule "deps/fmipp"]
+        path = deps/fmipp
+	url = https://git.code.sf.net/p/fmipp/code
+		
