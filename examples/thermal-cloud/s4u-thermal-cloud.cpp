@@ -42,14 +42,14 @@ public:
 		output << getDCPowerConsumption("rennes") << ";";
 		output << getDCPowerConsumption("sophia") << ";";
 
-		output << simgrid::fmi::FMIPlugin::getFMU("chiller_failure")->getIntegerOutput("chiller_status") << ";";
+		output << simgrid::fmi::FMIPlugin::getIntegerOutput("chiller_failure","chiller_status") << ";";
 
-		output << simgrid::fmi::FMIPlugin::getFMU("thermal_system")->getIntegerOutput("power_supply_status");
+		output << simgrid::fmi::FMIPlugin::getIntegerOutput("thermal_system","power_supply_status");
 
 		std::vector<std::string> realOutputNames = {"Q_load_DC","P_other_DC","Q_other_DC","P_chiller","Q_cooling","P_DC","Q_DC","T_R_out"};
 
 		for(std::string var : realOutputNames){
-			output << ";" << simgrid::fmi::FMIPlugin::getFMU("thermal_system")->getRealOutput(var);
+			output << ";" << simgrid::fmi::FMIPlugin::getRealOutput("thermal_system",var);
 		}
 
 		output << "\n";
@@ -57,9 +57,9 @@ public:
 
 	static void updatePowerInFMUs(){
 		double power = getDCPowerConsumption("rennes");
-		simgrid::fmi::FMIPlugin::getFMU("thermal_system")->setRealInput("P_load_DC",power);
-		double q_cooling = simgrid::fmi::FMIPlugin::getFMU("thermal_system")->getRealOutput("Q_cooling");
-		simgrid::fmi::FMIPlugin::getFMU("chiller_failure")->setRealInput("chiller_load",q_cooling);
+		simgrid::fmi::FMIPlugin::setRealInput("thermal_system","P_load_DC",power);
+		double q_cooling = simgrid::fmi::FMIPlugin::getRealOutput("thermal_system","Q_cooling");
+		simgrid::fmi::FMIPlugin::setRealInput("chiller_failure","chiller_load",q_cooling);
 		logOutput();
 		XBT_INFO("set inputs of the FMUs : P_load = %f, chiller_load = %f",power,q_cooling);
 	}
@@ -79,15 +79,15 @@ public:
 // EVENT DETECTORS
 
 static bool reactOnZeroValue(std::vector<std::string> args){
-	return simgrid::fmi::FMIPlugin::getFMU(args[0])->getIntegerOutput(args[1]) == 0;
+	return simgrid::fmi::FMIPlugin::getIntegerOutput(args[0],args[1]) == 0;
 }
 
 // EVENT CALLBACKS
 static void manageFailure(std::vector<std::string> args){
 
 	// first, we propagate the event to the other FMUs
-	int chiller_status = simgrid::fmi::FMIPlugin::getFMU("chiller_failure")->getIntegerOutput("chiller_status");
-	simgrid::fmi::FMIPlugin::getFMU("thermal_system")->setIntegerInput("chiller_status",chiller_status);
+	int chiller_status = simgrid::fmi::FMIPlugin::getIntegerOutput("chiller_failure","chiller_status");
+	simgrid::fmi::FMIPlugin::setIntegerInput("thermal_system","chiller_status",chiller_status);
 	Utility::logOutput();
 
 	// then, we wake up the actor
@@ -113,14 +113,14 @@ static void shutDownRennesHosts(std::vector<std::string> args){
 
 	unsigned long pid = simgrid::s4u::Actor::self()->get_pid();
 	std::vector<std::string> args_shutdown = {"thermal_system","power_supply_status",std::to_string(pid)};
-	simgrid::fmi::FMIPlugin::getFMU("thermal_system")->registerEvent(reactOnZeroValue,wakeUpActor,args_shutdown);
+	simgrid::fmi::FMIPlugin::registerEvent(reactOnZeroValue,wakeUpActor,args_shutdown);
 	simgrid::s4u::Actor::self()->suspend();
 
 	// TODO: remove these two lines when the simulation end properly
 	Utility::logOutput();
 	output.close();
 
-	double T_R_out = simgrid::fmi::FMIPlugin::getFMU("thermal_system")->getRealOutput("T_R_out");
+	double T_R_out = simgrid::fmi::FMIPlugin::getRealOutput("thermal_system","T_R_out");
 	XBT_INFO("shutting-down rennes DC because the room temperature is too high ( %f °C )",T_R_out);
 
 	for(int i=0;i<nb_hosts_per_cluster;i++){
@@ -193,12 +193,12 @@ static int failureNotifier(std::vector<std::string> args){
 
 	std::vector<std::string> params = {"chiller_failure","chiller_status",std::to_string(pid)};
 
-	simgrid::fmi::FMIPlugin::getFMU("chiller_failure")->registerEvent(reactOnZeroValue,manageFailure,params);
+	simgrid::fmi::FMIPlugin::registerEvent(reactOnZeroValue,manageFailure,params);
 	simgrid::s4u::Actor::self()->suspend();
 
 	XBT_INFO("failure of the chiller detected!!! send a message to notify the failure manager ");
 	double* payload = new double();
-	*payload        = simgrid::s4u::Engine::get_clock();
+	*payload = simgrid::s4u::Engine::get_clock();
 
 	simgrid::s4u::Mailbox::by_name("emergency")->put(payload,200);
 
@@ -270,8 +270,12 @@ int main(int argc, char *argv[])
 
   sg_host_energy_plugin_init();
   sg_vm_live_migration_plugin_init();
-
   simgrid::s4u::Engine e(&argc, argv);
+
+
+  const double intstepsize = 0.01;
+  simgrid::fmi::FMIPlugin::initFMIPlugin(intstepsize);
+
 
   e.load_platform("clusters_rennes.xml");
 
@@ -282,24 +286,16 @@ int main(int argc, char *argv[])
   std::string fmu_uri = "file:///home/mecsyco/Documents/chiller_failure";
   std::string fmu_name = "chiller_failure";
 
-  const double stepsize = 1;
-  const double lookahead = 1;
-  const double intstepsize = 1000000;
-
-  simgrid::fmi::FMIPlugin::addFMUCS(fmu_uri, fmu_name, intstepsize);
+  simgrid::fmi::FMIPlugin::addFMUCS(fmu_uri, fmu_name);
 
   // ADDING FMU-CS v2.0
 
   std::string fmu_uri_2 = "file:///home/mecsyco/Documents/fmu_test/thermal_system_om";
   std::string fmu_name_2 = "thermal_system";
 
-  const double stepsize_2 = 0.01;
-  const double lookahead_2 = 1;
-  const double intstepsize_2 = 0.01;
+  simgrid::fmi::FMIPlugin::addFMUCS(fmu_uri_2, fmu_name_2);
 
-  simgrid::fmi::FMIPlugin::addFMUCS(fmu_uri_2, fmu_name_2, intstepsize_2);
-
-  simgrid::fmi::FMIPlugin::getFMU("thermal_system")->setIntegerInput("chiller_status",1);
+  simgrid::fmi::FMIPlugin::setIntegerInput("thermal_system","chiller_status",1);
 
   Utility::updatePowerInFMUs();
 
