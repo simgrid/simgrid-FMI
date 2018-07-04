@@ -19,6 +19,35 @@ struct fmu_connection{
 	std::string input_port;
 };
 
+struct real_simgrid_fmu_connection{
+	std::string in_fmu_name;
+	std::string input_port;
+	double (*generateInput)(std::vector<std::string>);
+	std::vector<std::string> params;
+};
+
+struct integer_simgrid_fmu_connection{
+	std::string in_fmu_name;
+	std::string input_port;
+	int (*generateInput)(std::vector<std::string>);
+	std::vector<std::string> params;
+};
+
+struct boolean_simgrid_fmu_connection{
+	std::string in_fmu_name;
+	std::string input_port;
+	bool (*generateInput)(std::vector<std::string>);
+	std::vector<std::string> params;
+};
+
+struct string_simgrid_fmu_connection{
+	std::string in_fmu_name;
+	std::string input_port;
+	std::string (*generateInput)(std::vector<std::string>);
+	std::vector<std::string> params;
+};
+
+
 class MasterFMI : public simgrid::kernel::resource::Model{
 
 private:
@@ -37,6 +66,15 @@ private:
 	std::vector<fmu_connection> couplings;
 
 	/**
+	 * coupling between SimGrid models and FMUs
+	 */
+	std::vector<real_simgrid_fmu_connection> real_ext_couplings;
+	std::vector<integer_simgrid_fmu_connection> integer_ext_couplings;
+	std::vector<boolean_simgrid_fmu_connection> boolean_ext_couplings;
+	std::vector<string_simgrid_fmu_connection> string_ext_couplings;
+
+
+	/**
 	 * last output values send to the input
 	 */
 	std::unordered_map<std::string,double> last_real_outputs;
@@ -48,6 +86,8 @@ private:
 	double commStep;
 	double current_time;
 
+	bool firstEvent;
+
 	std::vector<void (*)(std::vector<std::string>)> event_handlers;
 	std::vector<bool (*)(std::vector<std::string>)> event_conditions;
 	std::vector<std::vector<std::string>> event_params;
@@ -55,7 +95,7 @@ private:
 	void manageEventNotification();
 	void solveCouplings(bool firstIteration);
 	bool solveCoupling(fmu_connection coupling, bool checkChange);
-
+	void solveExternalCoupling();
 
 public:
 	MasterFMI(const double stepSize);
@@ -74,6 +114,12 @@ public:
 	void registerEvent(bool (*condition)(std::vector<std::string>), void (*handleEvent)(std::vector<std::string>), std::vector<std::string> params);
 	void deleteEvents();
 	void connectFMU(std::string out_fmu_name,std::string output_port,std::string in_fmu_name,std::string input_port);
+	void connectRealFMUToSimgrid(double (*generateInput)(std::vector<std::string>), std::vector<std::string> params, std::string fmu_name, std::string input_name);
+	void connectIntegerFMUToSimgrid(int (*generateInput)(std::vector<std::string>), std::vector<std::string> params, std::string fmu_name, std::string input_name);
+	void connectBooleanFMUToSimgrid(bool (*generateInput)(std::vector<std::string>), std::vector<std::string> params, std::string fmu_name, std::string input_name);
+	void connectStringFMUToSimgrid(std::string (*generateInput)(std::vector<std::string>), std::vector<std::string> params, std::string fmu_name, std::string input_name);
+	void initCouplings();
+
 };
 
 
@@ -93,10 +139,15 @@ public:
 	static void setStringInput(std::string fmi_name, std::string input_name, std::string value);
 	static void registerEvent(bool (*condition)(std::vector<std::string>), void (*handleEvent)(std::vector<std::string>), std::vector<std::string> params);
 	static void deleteEvents();
-	static MasterFMI *master;
-protected:
+	static void connectRealFMUToSimgrid(double (*generateInput)(std::vector<std::string>), std::vector<std::string> params, std::string fmu_name, std::string input_name);
+	static void connectIntegerFMUToSimgrid(int (*generateInput)(std::vector<std::string>), std::vector<std::string> params, std::string fmu_name, std::string input_name);
+	static void connectBooleanFMUToSimgrid(bool (*generateInput)(std::vector<std::string>), std::vector<std::string> params, std::string fmu_name, std::string input_name);
+	static void connectStringFMUToSimgrid(std::string (*generateInput)(std::vector<std::string>), std::vector<std::string> params, std::string fmu_name, std::string input_name);
+	static void readyForSimulation();
+private:
 	FMIPlugin();
 	~FMIPlugin();
+	static MasterFMI *master;
 };
 
 }

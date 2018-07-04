@@ -39,8 +39,11 @@ public:
 
 		output << simgrid::s4u::Engine::get_clock() << ";";
 
-		output << getDCPowerConsumption("rennes") << ";";
-		output << getDCPowerConsumption("sophia") << ";";
+		std::vector<std::string> rennes_param = {"rennes"};
+		std::vector<std::string> sophia_param = {"sophia"};
+
+		output << getDCPowerConsumption(rennes_param) << ";";
+		output << getDCPowerConsumption(sophia_param) << ";";
 
 		output << simgrid::fmi::FMIPlugin::getIntegerOutput("chiller_failure","chiller_status") << ";";
 
@@ -55,17 +58,9 @@ public:
 		output << "\n";
 	}
 
-	static void updatePowerInFMUs(){
-		double power = getDCPowerConsumption("rennes");
-		simgrid::fmi::FMIPlugin::setRealInput("thermal_system","P_load_DC",power);
-		double q_cooling = simgrid::fmi::FMIPlugin::getRealOutput("thermal_system","Q_cooling");
-		logOutput();
-		XBT_INFO("set inputs of the FMUs : P_load = %f, chiller_load = %f",power,q_cooling);
-	}
-
-	static double getDCPowerConsumption(std::string dc_name){
+	static double getDCPowerConsumption(std::vector<std::string> args){
 		double total_power = 0;
-
+		std::string dc_name = args[0];
 		for(int i=0;i<nb_hosts_per_cluster;i++){
 			std::string host_name = "c-" + std::to_string(i) + "."+ dc_name;
 			simgrid::s4u::Host* host = simgrid::s4u::Host::by_name(host_name);
@@ -129,8 +124,6 @@ static void shutDownRennesHosts(std::vector<std::string> args){
 	unsigned long pid_on = std::stoul(args[0],0,10);
 	simgrid::s4u::Actor::by_pid(pid_on)->kill();
 
-	Utility::updatePowerInFMUs();
-
 	XBT_INFO("rennes DC is shutdown");
 	//output.close();
 
@@ -174,9 +167,6 @@ static int master_nominal_behavior(std::vector<std::string> args){
 
 		}
 
-
-		Utility::updatePowerInFMUs();
-
 		simgrid::s4u::this_actor::sleep_for(vm_creation_period);
 	}
 
@@ -218,7 +208,6 @@ static int failureManager(std::vector<std::string> args){
 		if(host->is_on())
 			host->turn_off();
 	}
-	Utility::updatePowerInFMUs();
 
 	// try to migrate as VM as possible to the other cluster
 	current_host = 0;
@@ -241,8 +230,6 @@ static int failureManager(std::vector<std::string> args){
 			current_host++;
 			vm_id=0;
 		}
-
-		Utility::updatePowerInFMUs();
 
 	}
 
@@ -277,24 +264,28 @@ int main(int argc, char *argv[])
 
   std::vector<std::string> args;
 
-  // ADDING FMU-CS 1.0
+  // ADDING FMUs
 
   std::string fmu_uri = "file:///home/mecsyco/Documents/chiller_failure";
   std::string fmu_name = "chiller_failure";
 
   simgrid::fmi::FMIPlugin::addFMUCS(fmu_uri, fmu_name);
 
-  // ADDING FMU-CS v2.0
-
   std::string fmu_uri_2 = "file:///home/mecsyco/Documents/fmu_test/thermal_system_om";
   std::string fmu_name_2 = "thermal_system";
 
   simgrid::fmi::FMIPlugin::addFMUCS(fmu_uri_2, fmu_name_2);
 
+  // CONNECTING FMUS
   simgrid::fmi::FMIPlugin::connectFMU("thermal_system","Q_cooling","chiller_failure","chiller_load");
   simgrid::fmi::FMIPlugin::connectFMU("chiller_failure","chiller_status","thermal_system","chiller_status");
 
-  Utility::updatePowerInFMUs();
+  std::vector<std::string> args_dc_pow = {"rennes"};
+  simgrid::fmi::FMIPlugin::connectRealFMUToSimgrid(Utility::getDCPowerConsumption,args_dc_pow,"thermal_system","P_load_DC");
+
+  simgrid::fmi::FMIPlugin::readyForSimulation();
+
+  // CREATING SIMGRID ACTORS
 
   simgrid::s4u::ActorPtr master_nominal = simgrid::s4u::Actor::create("master_nominal", simgrid::s4u::Host::by_name("c-0.sophia"), master_nominal_behavior, args);
   simgrid::s4u::Actor::create("failure_notifier", simgrid::s4u::Host::by_name("c-0.rennes"), failureNotifier, args);

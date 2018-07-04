@@ -37,11 +37,32 @@ void FMIPlugin::connectFMU(std::string out_fmu_name,std::string output_port,std:
 	master->connectFMU(out_fmu_name,output_port,in_fmu_name,input_port);
 }
 
+void FMIPlugin::connectRealFMUToSimgrid(double (*generateInput)(std::vector<std::string>), std::vector<std::string> params, std::string fmu_name, std::string input_name){
+	master->connectRealFMUToSimgrid(generateInput,params,fmu_name,input_name);
+}
+
+void FMIPlugin::connectIntegerFMUToSimgrid(int (*generateInput)(std::vector<std::string>), std::vector<std::string> params, std::string fmu_name, std::string input_name){
+	master->connectIntegerFMUToSimgrid(generateInput,params,fmu_name,input_name);
+}
+
+void FMIPlugin::connectBooleanFMUToSimgrid(bool (*generateInput)(std::vector<std::string>), std::vector<std::string> params, std::string fmu_name, std::string input_name){
+	master->connectBooleanFMUToSimgrid(generateInput,params,fmu_name,input_name);
+}
+
+void FMIPlugin::connectStringFMUToSimgrid(std::string (*generateInput)(std::vector<std::string>), std::vector<std::string> params, std::string fmu_name, std::string input_name){
+	master->connectStringFMUToSimgrid(generateInput,params,fmu_name,input_name);
+}
+
+
 void FMIPlugin::initFMIPlugin(double communication_step){
 	if(master == 0){
 		master = new MasterFMI(communication_step);
-		all_existing_models->push_back(master);
 	}
+}
+
+void FMIPlugin::readyForSimulation(){
+	master->initCouplings();
+	all_existing_models->push_back(master);
 }
 
 double FMIPlugin::getRealOutput(std::string fmi_name, std::string output_name){
@@ -86,7 +107,9 @@ void FMIPlugin::setStringInput(std::string fmi_name, std::string input_name, std
 }
 
 void FMIPlugin::registerEvent(bool (*condition)(std::vector<std::string>), void (*handleEvent)(std::vector<std::string>), std::vector<std::string> params){
-	master->registerEvent(condition,handleEvent,params);
+	simgrid::simix::simcall([condition,handleEvent,params]() {
+		master->registerEvent(condition,handleEvent,params);
+	});
 }
 
 void FMIPlugin::deleteEvents(){
@@ -105,6 +128,7 @@ MasterFMI::MasterFMI(const double stepSize)
 	commStep = stepSize;
 	nextEvent = -1;
 	current_time = 0;
+	firstEvent = true;
 }
 
 
@@ -158,6 +182,51 @@ void MasterFMI::connectFMU(std::string out_fmu_name,std::string output_port,std:
 	connection.input_port = input_port;
 	couplings.push_back(connection);
 }
+
+void MasterFMI::connectRealFMUToSimgrid(double (*generateInput)(std::vector<std::string>), std::vector<std::string> params, std::string fmu_name, std::string input_name){
+	real_simgrid_fmu_connection connection;
+
+	connection.in_fmu_name = fmu_name;
+	connection.input_port = input_name;
+	connection.generateInput = generateInput;
+	connection.params = params;
+
+	real_ext_couplings.push_back(connection);
+}
+
+void MasterFMI::connectIntegerFMUToSimgrid(int (*generateInput)(std::vector<std::string>), std::vector<std::string> params, std::string fmu_name, std::string input_name){
+	integer_simgrid_fmu_connection connection;
+
+	connection.in_fmu_name = fmu_name;
+	connection.input_port = input_name;
+	connection.generateInput = generateInput;
+	connection.params = params;
+
+	integer_ext_couplings.push_back(connection);
+}
+
+void MasterFMI::connectBooleanFMUToSimgrid(bool (*generateInput)(std::vector<std::string>), std::vector<std::string> params, std::string fmu_name, std::string input_name){
+	boolean_simgrid_fmu_connection connection;
+
+	connection.in_fmu_name = fmu_name;
+	connection.input_port = input_name;
+	connection.generateInput = generateInput;
+	connection.params = params;
+
+	boolean_ext_couplings.push_back(connection);
+}
+
+void MasterFMI::connectStringFMUToSimgrid(std::string (*generateInput)(std::vector<std::string>), std::vector<std::string> params, std::string fmu_name, std::string input_name){
+	string_simgrid_fmu_connection connection;
+
+	connection.in_fmu_name = fmu_name;
+	connection.input_port = input_name;
+	connection.generateInput = generateInput;
+	connection.params = params;
+
+	string_ext_couplings.push_back(connection);
+}
+
 
 
 double MasterFMI::getRealOutput(std::string fmi_name, std::string output_name){
@@ -292,23 +361,58 @@ bool MasterFMI::solveCoupling(fmu_connection coupling, bool checkChange){
 	return change;
 }
 
+void MasterFMI::solveExternalCoupling(){
+
+	for(real_simgrid_fmu_connection coupling : real_ext_couplings){
+		double input = coupling.generateInput(coupling.params);
+		setRealInput(coupling.in_fmu_name, coupling.input_port, input,false);
+	}
+
+	for(integer_simgrid_fmu_connection coupling : integer_ext_couplings){
+		int input = coupling.generateInput(coupling.params);
+		setIntegerInput(coupling.in_fmu_name, coupling.input_port, input,false);
+	}
+
+	for(boolean_simgrid_fmu_connection coupling : boolean_ext_couplings){
+		bool input = coupling.generateInput(coupling.params);
+		setBooleanInput(coupling.in_fmu_name, coupling.input_port, input,false);
+	}
+
+	for(string_simgrid_fmu_connection coupling : string_ext_couplings){
+		std::string input = coupling.generateInput(coupling.params);
+		setStringInput(coupling.in_fmu_name, coupling.input_port, input,false);
+	}
+}
+
 
 void MasterFMI::update_actions_state(double now, double delta){
 	XBT_DEBUG("updating FMU at time = %f, delta = %f",now,delta);
+	bool newTime = false;
 	if(delta > 0){
 		for(auto it : fmus){
 			it.second->doStep(current_time, delta, fmiTrue );
 		}
 		current_time = now;
+		newTime = true;
 	}
 
+	solveExternalCoupling();
+	solveCouplings(newTime);
+	manageEventNotification();
+}
+
+void MasterFMI::initCouplings(){
+	solveExternalCoupling();
 	solveCouplings(true);
 	manageEventNotification();
 }
 
 double MasterFMI::next_occuring_event(double now){
 
-	if(event_handlers.size()==0){
+	if(firstEvent){
+		firstEvent = false;
+		return 0;
+	}else if(event_handlers.size()==0){
 		return -1;
 	}else{
 		return commStep;
@@ -320,15 +424,13 @@ void MasterFMI::registerEvent(bool (*condition)(std::vector<std::string>),
 	void (*handleEvent)(std::vector<std::string>),
 	std::vector<std::string> handlerParam){
 
-	simgrid::simix::simcall([this,condition,handleEvent,handlerParam]() {
-		if(condition(handlerParam)){
-			handleEvent(handlerParam);
-		}else{
-			event_handlers.push_back(handleEvent);
-			event_conditions.push_back(condition);
-			event_params.push_back(handlerParam);
-		}
-	});
+	if(condition(handlerParam)){
+		handleEvent(handlerParam);
+	}else{
+		event_handlers.push_back(handleEvent);
+		event_conditions.push_back(condition);
+		event_params.push_back(handlerParam);
+	}
 }
 
 void MasterFMI::manageEventNotification(){
