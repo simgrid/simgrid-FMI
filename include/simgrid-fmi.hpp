@@ -8,41 +8,54 @@
 #include "FMUCoSimulation_v1.h"
 #include "FMUCoSimulation_v2.h"
 #include "ModelManager.h"
+#include <boost/functional/hash.hpp>
+
+struct port{
+	std::string name;
+	std::string fmu;
+};
+
+bool operator== (port a, port b){
+	return (a.fmu == b.fmu) && (a.name == b.name);
+}
+
+namespace std{
+	using boost::hash_value;
+	using boost::hash_combine;
+	template<> struct hash<port>{
+		size_t operator()(const port& k) const{
+			std::size_t seed = 0;
+			hash_combine(seed,hash_value(k.fmu));
+			hash_combine(seed,hash_value(k.name));
+
+			return seed;
+		}
+	};
+}
 
 namespace simgrid{
 namespace fmi{
 
-struct fmu_connection{
-	std::string out_fmu_name;
-	std::string output_port;
-	std::string in_fmu_name;
-	std::string input_port;
-};
-
 struct real_simgrid_fmu_connection{
-	std::string in_fmu_name;
-	std::string input_port;
+	port in;
 	double (*generateInput)(std::vector<std::string>);
 	std::vector<std::string> params;
 };
 
 struct integer_simgrid_fmu_connection{
-	std::string in_fmu_name;
-	std::string input_port;
+	port in;
 	int (*generateInput)(std::vector<std::string>);
 	std::vector<std::string> params;
 };
 
 struct boolean_simgrid_fmu_connection{
-	std::string in_fmu_name;
-	std::string input_port;
+	port in;
 	bool (*generateInput)(std::vector<std::string>);
 	std::vector<std::string> params;
 };
 
 struct string_simgrid_fmu_connection{
-	std::string in_fmu_name;
-	std::string input_port;
+	port in;
 	std::string (*generateInput)(std::vector<std::string>);
 	std::vector<std::string> params;
 };
@@ -61,9 +74,10 @@ private:
 	std::unordered_map<std::string,bool> iterate_input;
 
 	/**
-	 * coupling between FMUs
+	 * coupling between FMUs (nb: key=input value=output !)
 	 */
-	std::vector<fmu_connection> couplings;
+	std::unordered_map<port,port> couplings;
+	std::vector<port> in_coupled_input;
 
 	/**
 	 * coupling between SimGrid models and FMUs
@@ -72,6 +86,8 @@ private:
 	std::vector<integer_simgrid_fmu_connection> integer_ext_couplings;
 	std::vector<boolean_simgrid_fmu_connection> boolean_ext_couplings;
 	std::vector<string_simgrid_fmu_connection> string_ext_couplings;
+
+	std::vector<port> ext_coupled_input;
 
 
 	/**
@@ -94,8 +110,10 @@ private:
 
 	void manageEventNotification();
 	void solveCouplings(bool firstIteration);
-	bool solveCoupling(fmu_connection coupling, bool checkChange);
+	bool solveCoupling(port in, port out, bool checkChange);
 	void solveExternalCoupling();
+
+	bool isInputCoupled(std::string fmu, std::string input_name);
 
 public:
 	MasterFMI(const double stepSize);

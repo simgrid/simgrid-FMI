@@ -15,7 +15,6 @@ XBT_LOG_NEW_DEFAULT_SUBCATEGORY(surf_fmi, surf, "Logging specific to the SURF FM
 namespace simgrid{
 namespace fmi{
 
-
 MasterFMI* FMIPlugin::master;
 
 
@@ -174,57 +173,86 @@ void MasterFMI::addFMUCS(std::string fmu_uri, std::string fmu_name, bool iterate
 
 void MasterFMI::connectFMU(std::string out_fmu_name,std::string output_port,std::string in_fmu_name,std::string input_port){
 
+	if(isInputCoupled(in_fmu_name,input_port))
+		xbt_die("you can not connect port %s of FMU %s to port %s of FMU %s because the input port is already coupled",output_port.c_str(),out_fmu_name.c_str(),input_port.c_str(),in_fmu_name.c_str());
+
 	//TODO: check if coupling is valid (i.e. FMU exists and variable type are the same
-	fmu_connection connection;
-	connection.out_fmu_name = out_fmu_name;
-	connection.output_port = output_port;
-	connection.in_fmu_name = in_fmu_name;
-	connection.input_port = input_port;
-	couplings.push_back(connection);
+	port out;
+	port in;
+	out.fmu = out_fmu_name;
+	out.name = output_port;
+	in.fmu = in_fmu_name;
+	in.name = input_port;
+	in_coupled_input.push_back(in);
+	couplings[in]=out;
 }
 
 void MasterFMI::connectRealFMUToSimgrid(double (*generateInput)(std::vector<std::string>), std::vector<std::string> params, std::string fmu_name, std::string input_name){
-	real_simgrid_fmu_connection connection;
 
-	connection.in_fmu_name = fmu_name;
-	connection.input_port = input_name;
+	if(isInputCoupled(fmu_name,input_name))
+		xbt_die("you can not connect SimGrid to port %s of FMU %s because the input port is already coupled",input_name.c_str(),fmu_name.c_str());
+
+	real_simgrid_fmu_connection connection;
+	port in;
+	in.fmu = fmu_name;
+	in.name = input_name;
+	connection.in = in;
 	connection.generateInput = generateInput;
 	connection.params = params;
 
 	real_ext_couplings.push_back(connection);
+	ext_coupled_input.push_back(in);
 }
 
 void MasterFMI::connectIntegerFMUToSimgrid(int (*generateInput)(std::vector<std::string>), std::vector<std::string> params, std::string fmu_name, std::string input_name){
-	integer_simgrid_fmu_connection connection;
 
-	connection.in_fmu_name = fmu_name;
-	connection.input_port = input_name;
+	if(isInputCoupled(fmu_name,input_name))
+		xbt_die("you can not connect SimGrid to port %s of FMU %s because the input port is already coupled",input_name.c_str(),fmu_name.c_str());
+
+	integer_simgrid_fmu_connection connection;
+	port in;
+	in.fmu = fmu_name;
+	in.name = input_name;
+	connection.in = in;
 	connection.generateInput = generateInput;
 	connection.params = params;
 
 	integer_ext_couplings.push_back(connection);
+	ext_coupled_input.push_back(in);
 }
 
 void MasterFMI::connectBooleanFMUToSimgrid(bool (*generateInput)(std::vector<std::string>), std::vector<std::string> params, std::string fmu_name, std::string input_name){
-	boolean_simgrid_fmu_connection connection;
 
-	connection.in_fmu_name = fmu_name;
-	connection.input_port = input_name;
+	if(isInputCoupled(fmu_name,input_name))
+		xbt_die("you can not connect SimGrid to port %s of FMU %s because the input port is already coupled",input_name.c_str(),fmu_name.c_str());
+
+	boolean_simgrid_fmu_connection connection;
+	port in;
+	in.fmu = fmu_name;
+	in.name = input_name;
+	connection.in = in;
 	connection.generateInput = generateInput;
 	connection.params = params;
 
 	boolean_ext_couplings.push_back(connection);
+	ext_coupled_input.push_back(in);
 }
 
 void MasterFMI::connectStringFMUToSimgrid(std::string (*generateInput)(std::vector<std::string>), std::vector<std::string> params, std::string fmu_name, std::string input_name){
-	string_simgrid_fmu_connection connection;
 
-	connection.in_fmu_name = fmu_name;
-	connection.input_port = input_name;
+	if(isInputCoupled(fmu_name,input_name))
+		xbt_die("you can not connect SimGrid to port %s of FMU %s because the input port is already coupled",input_name.c_str(),fmu_name.c_str());
+
+	string_simgrid_fmu_connection connection;
+	port in;
+	in.fmu = fmu_name;
+	in.name = input_name;
+	connection.in = in;
 	connection.generateInput = generateInput;
 	connection.params = params;
 
 	string_ext_couplings.push_back(connection);
+	ext_coupled_input.push_back(in);
 }
 
 
@@ -246,6 +274,10 @@ std::string MasterFMI::getStringOutput(std::string fmi_name, std::string output_
 }
 
 void MasterFMI::setRealInput(std::string fmi_name, std::string input_name, double value, bool simgrid_input){
+
+	if(simgrid_input && isInputCoupled(fmi_name,input_name))
+		xbt_die("you can not manually set port %s of FMU %s because it is already coupled to a model",input_name.c_str(),fmi_name.c_str());
+
 	fmus[fmi_name]->setValue(input_name,value);
 	if(iterate_input[fmi_name]){
 		fmus[fmi_name]->doStep(SIMIX_get_clock(), 0., fmiTrue );
@@ -258,6 +290,10 @@ void MasterFMI::setRealInput(std::string fmi_name, std::string input_name, doubl
 }
 
 void MasterFMI::setBooleanInput(std::string fmi_name, std::string input_name, bool value, bool simgrid_input){
+
+	if(simgrid_input && isInputCoupled(fmi_name,input_name))
+			xbt_die("you can not manually set port %s of FMU %s because it is already coupled to a model",input_name.c_str(),fmi_name.c_str());
+
 	fmus[fmi_name]->setValue(input_name,value);
 	if(iterate_input[fmi_name]){
 		fmus[fmi_name]->doStep(SIMIX_get_clock(), 0., fmiTrue );
@@ -270,6 +306,10 @@ void MasterFMI::setBooleanInput(std::string fmi_name, std::string input_name, bo
 }
 
 void MasterFMI::setIntegerInput(std::string fmi_name, std::string input_name, int value, bool simgrid_input){
+
+	if(simgrid_input && isInputCoupled(fmi_name,input_name))
+			xbt_die("you can not manually set port %s of FMU %s because it is already coupled to a model",input_name.c_str(),fmi_name.c_str());
+
 	fmus[fmi_name]->setValue(input_name,value);
 	if(iterate_input[fmi_name]){
 		fmus[fmi_name]->doStep(SIMIX_get_clock(), 0., fmiTrue );
@@ -282,6 +322,10 @@ void MasterFMI::setIntegerInput(std::string fmi_name, std::string input_name, in
 }
 
 void MasterFMI::setStringInput(std::string fmi_name, std::string input_name, std::string value, bool simgrid_input){
+
+	if(simgrid_input && isInputCoupled(fmi_name,input_name))
+			xbt_die("you can not manually set port %s of FMU %s because it is already coupled to a model",input_name.c_str(),fmi_name.c_str());
+
 	fmus[fmi_name]->setValue(input_name,value);
 	if(iterate_input[fmi_name]){
 		fmus[fmi_name]->doStep(SIMIX_get_clock(), 0., fmiTrue );
@@ -298,26 +342,26 @@ void MasterFMI::solveCouplings(bool firstIteration){
 	bool change = true;
 	while(change){
 		change = false;
-		for(fmu_connection coupling : couplings){
-			change = (change || solveCoupling(coupling,!firstIteration));
+		for(port in : in_coupled_input){
+			change = (change || solveCoupling(in, couplings[in],!firstIteration));
 		}
 		if(firstIteration)
 			firstIteration = false;
 	}
 }
 
-bool MasterFMI::solveCoupling(fmu_connection coupling, bool checkChange){
+bool MasterFMI::solveCoupling(port in, port out, bool checkChange){
 
 	bool change = false;
 
-	FMIVariableType type = fmus[coupling.out_fmu_name]->getType(coupling.output_port);
-	std::string var_name = coupling.out_fmu_name+"_"+coupling.output_port;
+	FMIVariableType type = fmus[out.fmu]->getType(out.name);
+	std::string var_name = out.fmu+"_"+out.name;
 	switch(type){
 		case FMIVariableType::fmiTypeReal:
 		{
-			double r_out = getRealOutput(coupling.out_fmu_name, coupling.output_port);
+			double r_out = getRealOutput(out.fmu, out.name);
 			if( !checkChange || r_out !=  last_real_outputs[var_name]){
-				setRealInput(coupling.in_fmu_name, coupling.input_port, r_out,false);
+				setRealInput(in.fmu, in.name, r_out,false);
 				last_real_outputs[var_name] = r_out;
 				change = true;
 			}
@@ -325,9 +369,9 @@ bool MasterFMI::solveCoupling(fmu_connection coupling, bool checkChange){
 		}
 		case FMIVariableType::fmiTypeInteger:
 		{
-			int i_out = getIntegerOutput(coupling.out_fmu_name, coupling.output_port);
+			int i_out = getIntegerOutput(out.fmu, out.name);
 			if( !checkChange || i_out != last_int_outputs[var_name]){
-				setIntegerInput(coupling.in_fmu_name, coupling.input_port, i_out,false);
+				setIntegerInput(in.fmu, in.name, i_out,false);
 				last_int_outputs[var_name] = i_out;
 				change = true;
 			}
@@ -335,9 +379,9 @@ bool MasterFMI::solveCoupling(fmu_connection coupling, bool checkChange){
 		}
 		case FMIVariableType::fmiTypeBoolean:
 		{
-			bool b_out = getBooleanOutput(coupling.out_fmu_name, coupling.output_port);
+			bool b_out = getBooleanOutput(out.fmu, out.name);
 			if( !checkChange || b_out != last_bool_outputs[var_name]){
-				setBooleanInput(coupling.in_fmu_name, coupling.input_port, b_out,false);
+				setBooleanInput(in.fmu, in.name, b_out,false);
 				last_bool_outputs[var_name] = b_out;
 				change = true;
 			}
@@ -345,9 +389,9 @@ bool MasterFMI::solveCoupling(fmu_connection coupling, bool checkChange){
 		}
 		case FMIVariableType::fmiTypeString:
 		{
-			std::string s_out = getStringOutput(coupling.out_fmu_name, coupling.output_port);
+			std::string s_out = getStringOutput(out.fmu, out.name);
 			if( !checkChange || s_out != last_string_outputs[var_name]){
-				setStringInput(coupling.in_fmu_name, coupling.input_port, s_out,false);
+				setStringInput(in.fmu, in.name, s_out,false);
 				last_string_outputs[var_name] = s_out;
 				change = true;
 			}
@@ -365,39 +409,42 @@ void MasterFMI::solveExternalCoupling(){
 
 	for(real_simgrid_fmu_connection coupling : real_ext_couplings){
 		double input = coupling.generateInput(coupling.params);
-		setRealInput(coupling.in_fmu_name, coupling.input_port, input,false);
+		setRealInput(coupling.in.fmu, coupling.in.name, input,false);
 	}
 
 	for(integer_simgrid_fmu_connection coupling : integer_ext_couplings){
 		int input = coupling.generateInput(coupling.params);
-		setIntegerInput(coupling.in_fmu_name, coupling.input_port, input,false);
+		setIntegerInput(coupling.in.fmu, coupling.in.name, input,false);
 	}
 
 	for(boolean_simgrid_fmu_connection coupling : boolean_ext_couplings){
 		bool input = coupling.generateInput(coupling.params);
-		setBooleanInput(coupling.in_fmu_name, coupling.input_port, input,false);
+		setBooleanInput(coupling.in.fmu, coupling.in.name, input,false);
 	}
 
 	for(string_simgrid_fmu_connection coupling : string_ext_couplings){
 		std::string input = coupling.generateInput(coupling.params);
-		setStringInput(coupling.in_fmu_name, coupling.input_port, input,false);
+		setStringInput(coupling.in.fmu, coupling.in.name, input,false);
 	}
 }
 
 
 void MasterFMI::update_actions_state(double now, double delta){
-	XBT_DEBUG("updating FMU at time = %f, delta = %f",now,delta);
-	bool newTime = false;
-	if(delta > 0){
+
+	XBT_DEBUG("updating the FMUs at time = %f, delta = %f",now,delta);
+
+	while(current_time < now){
+		double dt = std::min(commStep, now - current_time);
 		for(auto it : fmus){
-			it.second->doStep(current_time, delta, fmiTrue );
+			it.second->doStep(current_time, dt, fmiTrue );
 		}
-		current_time = now;
-		newTime = true;
+		solveCouplings(true);
+
+		current_time += dt;
 	}
 
 	solveExternalCoupling();
-	solveCouplings(newTime);
+	solveCouplings(false);
 	manageEventNotification();
 }
 
@@ -457,6 +504,14 @@ void MasterFMI::deleteEvents(){
 	event_handlers.clear();
 	event_conditions.clear();
 	event_params.clear();
+}
+
+bool MasterFMI::isInputCoupled(std::string fmu, std::string input_name){
+	port input;
+	input.fmu = fmu;
+	input.name = input_name;
+	return std::find(in_coupled_input.begin(), in_coupled_input.end(), input) != in_coupled_input.end()
+			|| std::find(ext_coupled_input.begin(), ext_coupled_input.end(), input) != ext_coupled_input.end();
 }
 
 }
