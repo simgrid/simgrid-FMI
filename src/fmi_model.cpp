@@ -132,7 +132,6 @@ MasterFMI::MasterFMI(const double stepSize)
 
 
 MasterFMI::~MasterFMI() {
-	//delete fmus;
 }
 
 
@@ -173,10 +172,9 @@ void MasterFMI::addFMUCS(std::string fmu_uri, std::string fmu_name, bool iterate
 
 void MasterFMI::connectFMU(std::string out_fmu_name,std::string output_port,std::string in_fmu_name,std::string input_port){
 
-	if(isInputCoupled(in_fmu_name,input_port))
-		xbt_die("you can not connect port %s of FMU %s to port %s of FMU %s because the input port is already coupled",output_port.c_str(),out_fmu_name.c_str(),input_port.c_str(),in_fmu_name.c_str());
+	checkPortValidity(out_fmu_name,output_port,FMIVariableType::fmiTypeUnknown,false);
+	checkPortValidity(in_fmu_name,input_port,fmus[out_fmu_name]->getType(output_port),true);
 
-	//TODO: check if coupling is valid (i.e. FMU exists and variable type are the same
 	port out;
 	port in;
 	out.fmu = out_fmu_name;
@@ -189,8 +187,7 @@ void MasterFMI::connectFMU(std::string out_fmu_name,std::string output_port,std:
 
 void MasterFMI::connectRealFMUToSimgrid(double (*generateInput)(std::vector<std::string>), std::vector<std::string> params, std::string fmu_name, std::string input_name){
 
-	if(isInputCoupled(fmu_name,input_name))
-		xbt_die("you can not connect SimGrid to port %s of FMU %s because the input port is already coupled",input_name.c_str(),fmu_name.c_str());
+	checkPortValidity(fmu_name,input_name,FMIVariableType::fmiTypeReal,true);
 
 	real_simgrid_fmu_connection connection;
 	port in;
@@ -206,8 +203,7 @@ void MasterFMI::connectRealFMUToSimgrid(double (*generateInput)(std::vector<std:
 
 void MasterFMI::connectIntegerFMUToSimgrid(int (*generateInput)(std::vector<std::string>), std::vector<std::string> params, std::string fmu_name, std::string input_name){
 
-	if(isInputCoupled(fmu_name,input_name))
-		xbt_die("you can not connect SimGrid to port %s of FMU %s because the input port is already coupled",input_name.c_str(),fmu_name.c_str());
+	checkPortValidity(fmu_name,input_name,FMIVariableType::fmiTypeInteger,true);
 
 	integer_simgrid_fmu_connection connection;
 	port in;
@@ -223,8 +219,7 @@ void MasterFMI::connectIntegerFMUToSimgrid(int (*generateInput)(std::vector<std:
 
 void MasterFMI::connectBooleanFMUToSimgrid(bool (*generateInput)(std::vector<std::string>), std::vector<std::string> params, std::string fmu_name, std::string input_name){
 
-	if(isInputCoupled(fmu_name,input_name))
-		xbt_die("you can not connect SimGrid to port %s of FMU %s because the input port is already coupled",input_name.c_str(),fmu_name.c_str());
+	checkPortValidity(fmu_name,input_name,FMIVariableType::fmiTypeBoolean,true);
 
 	boolean_simgrid_fmu_connection connection;
 	port in;
@@ -240,8 +235,7 @@ void MasterFMI::connectBooleanFMUToSimgrid(bool (*generateInput)(std::vector<std
 
 void MasterFMI::connectStringFMUToSimgrid(std::string (*generateInput)(std::vector<std::string>), std::vector<std::string> params, std::string fmu_name, std::string input_name){
 
-	if(isInputCoupled(fmu_name,input_name))
-		xbt_die("you can not connect SimGrid to port %s of FMU %s because the input port is already coupled",input_name.c_str(),fmu_name.c_str());
+	checkPortValidity(fmu_name,input_name,FMIVariableType::fmiTypeString,true);
 
 	string_simgrid_fmu_connection connection;
 	port in;
@@ -258,29 +252,67 @@ void MasterFMI::connectStringFMUToSimgrid(std::string (*generateInput)(std::vect
 
 
 double MasterFMI::getRealOutput(std::string fmi_name, std::string output_name){
-	return fmus[fmi_name]->getRealValue(output_name);
+
+	checkPortValidity(fmi_name,output_name,FMIVariableType::fmiTypeReal,false);
+
+	double out;
+	fmiStatus status = fmus[fmi_name]->getValue(output_name,out);
+	if(status != fmiOK)
+		xbt_die("FMI %s failed to return the value of variable %s",fmi_name.c_str(),output_name.c_str());
+
+	return out;
 }
 
 bool MasterFMI::getBooleanOutput(std::string fmi_name, std::string output_name){
-	return fmus[fmi_name]->getBooleanValue(output_name);
+
+	checkPortValidity(fmi_name,output_name,FMIVariableType::fmiTypeBoolean,false);
+
+	fmi2Boolean out;
+	fmiStatus status = fmus[fmi_name]->getValue(output_name,out);
+	if(status != fmiOK)
+		xbt_die("FMI %s failed to return the value of variable %s",fmi_name.c_str(),output_name.c_str());
+
+	return out;
 }
 
 int MasterFMI::getIntegerOutput(std::string fmi_name, std::string output_name){
-	return fmus[fmi_name]->getIntegerValue(output_name);
+
+	checkPortValidity(fmi_name,output_name,FMIVariableType::fmiTypeInteger,false);
+
+	int out;
+	fmiStatus status = fmus[fmi_name]->getValue(output_name,out);
+	if(status != fmiOK)
+		xbt_die("FMI %s failed to return the value of variable %s",fmi_name.c_str(),output_name.c_str());
+
+	return out;
 }
 
 std::string MasterFMI::getStringOutput(std::string fmi_name, std::string output_name){
-	return fmus[fmi_name]->getStringValue(output_name);
+
+	checkPortValidity(fmi_name,output_name,FMIVariableType::fmiTypeString,false);
+
+	std::string out;
+	fmiStatus status = fmus[fmi_name]->getValue(output_name,out);
+	if(status != fmiOK)
+		xbt_die("FMI %s failed to return the value of variable %s",fmi_name.c_str(),output_name.c_str());
+
+	return out;
 }
 
 void MasterFMI::setRealInput(std::string fmi_name, std::string input_name, double value, bool simgrid_input){
 
-	if(simgrid_input && isInputCoupled(fmi_name,input_name))
-		xbt_die("you can not manually set port %s of FMU %s because it is already coupled to a model",input_name.c_str(),fmi_name.c_str());
+	if(simgrid_input){
+		checkPortValidity(fmi_name,input_name,FMIVariableType::fmiTypeReal,simgrid_input);
+	}
 
-	fmus[fmi_name]->setValue(input_name,value);
+	fmiStatus status = fmus[fmi_name]->setValue(input_name,value);
+	if(status != fmiOK)
+		xbt_die("FMU %s failed to set its port %s to value %f",fmi_name.c_str(),input_name.c_str(),value);
+
 	if(iterate_input[fmi_name]){
-		fmus[fmi_name]->doStep(SIMIX_get_clock(), 0., fmiTrue );
+		status = fmus[fmi_name]->doStep(SIMIX_get_clock(), 0., fmiTrue );
+		if(status != fmiOK)
+			xbt_die("FMU %s failed to perform a doStep(dt=0) after setting an input (you should may be set iterateAfterInput=false when adding the FMU CS).",fmi_name.c_str());
 	}
 
 	if(simgrid_input){
@@ -291,12 +323,18 @@ void MasterFMI::setRealInput(std::string fmi_name, std::string input_name, doubl
 
 void MasterFMI::setBooleanInput(std::string fmi_name, std::string input_name, bool value, bool simgrid_input){
 
-	if(simgrid_input && isInputCoupled(fmi_name,input_name))
-			xbt_die("you can not manually set port %s of FMU %s because it is already coupled to a model",input_name.c_str(),fmi_name.c_str());
+	if(simgrid_input){
+		checkPortValidity(fmi_name,input_name,FMIVariableType::fmiTypeBoolean,simgrid_input);
+	}
 
-	fmus[fmi_name]->setValue(input_name,value);
+	fmiStatus status = fmus[fmi_name]->setValue(input_name,value);
+	if(status != fmiOK)
+		xbt_die("FMU %s failed to set its port %s to value %i",fmi_name.c_str(),input_name.c_str(),value);
+
 	if(iterate_input[fmi_name]){
-		fmus[fmi_name]->doStep(SIMIX_get_clock(), 0., fmiTrue );
+		status = fmus[fmi_name]->doStep(SIMIX_get_clock(), 0., fmiTrue );
+		if(status != fmiOK)
+			xbt_die("FMU %s failed to perform a doStep(dt=0) after setting an input (you should may be set iterateAfterInput=false when adding the FMU CS).",fmi_name.c_str());
 	}
 
 	if(simgrid_input){
@@ -307,12 +345,18 @@ void MasterFMI::setBooleanInput(std::string fmi_name, std::string input_name, bo
 
 void MasterFMI::setIntegerInput(std::string fmi_name, std::string input_name, int value, bool simgrid_input){
 
-	if(simgrid_input && isInputCoupled(fmi_name,input_name))
-			xbt_die("you can not manually set port %s of FMU %s because it is already coupled to a model",input_name.c_str(),fmi_name.c_str());
+	if(simgrid_input){
+		checkPortValidity(fmi_name,input_name,FMIVariableType::fmiTypeInteger,simgrid_input);
+	}
 
-	fmus[fmi_name]->setValue(input_name,value);
+	fmiStatus status = fmus[fmi_name]->setValue(input_name,value);
+	if(status != fmiOK)
+		xbt_die("FMU %s failed to set its port %s to value %i",fmi_name.c_str(),input_name.c_str(),value);
+
 	if(iterate_input[fmi_name]){
-		fmus[fmi_name]->doStep(SIMIX_get_clock(), 0., fmiTrue );
+		status = fmus[fmi_name]->doStep(SIMIX_get_clock(), 0., fmiTrue );
+		if(status != fmiOK)
+			xbt_die("FMU %s failed to perform a doStep(dt=0) after setting an input (you should may be set iterateAfterInput=false when adding the FMU CS).",fmi_name.c_str());
 	}
 
 	if(simgrid_input){
@@ -323,12 +367,18 @@ void MasterFMI::setIntegerInput(std::string fmi_name, std::string input_name, in
 
 void MasterFMI::setStringInput(std::string fmi_name, std::string input_name, std::string value, bool simgrid_input){
 
-	if(simgrid_input && isInputCoupled(fmi_name,input_name))
-			xbt_die("you can not manually set port %s of FMU %s because it is already coupled to a model",input_name.c_str(),fmi_name.c_str());
+	if(simgrid_input){
+		checkPortValidity(fmi_name,input_name, FMIVariableType::fmiTypeString, simgrid_input);
+	}
 
-	fmus[fmi_name]->setValue(input_name,value);
+	fmiStatus status = fmus[fmi_name]->setValue(input_name,value);
+	if(status != fmiOK)
+		xbt_die("FMU %s failed to set its port %s to value %s",fmi_name.c_str(),input_name.c_str(),value.c_str());
+
 	if(iterate_input[fmi_name]){
-		fmus[fmi_name]->doStep(SIMIX_get_clock(), 0., fmiTrue );
+		status = fmus[fmi_name]->doStep(SIMIX_get_clock(), 0., fmiTrue );
+		if(status != fmiOK)
+			xbt_die("FMU %s failed to perform a doStep(dt=0) after setting an input (you should may be set iterateAfterInput=false when adding the FMU CS).",fmi_name.c_str());
 	}
 
 	if(simgrid_input){
@@ -397,9 +447,6 @@ bool MasterFMI::solveCoupling(port in, port out, bool checkChange){
 			}
 			break;
 		}
-		case FMIVariableType::fmiTypeUnknown:
-			// TODO: manage this error !!!
-			break;
 	}
 
 	return change;
@@ -436,7 +483,9 @@ void MasterFMI::update_actions_state(double now, double delta){
 	while(current_time < now){
 		double dt = std::min(commStep, now - current_time);
 		for(auto it : fmus){
-			it.second->doStep(current_time, dt, fmiTrue );
+			fmiStatus status = it.second->doStep(current_time, dt, fmiTrue );
+			if(status != fmiOK)
+				xbt_die("FMU %s failed to go from time %f to time %f during the co-simulation",it.first.c_str(),current_time,(current_time+dt));
 		}
 		solveCouplings(true);
 
@@ -512,6 +561,23 @@ bool MasterFMI::isInputCoupled(std::string fmu, std::string input_name){
 	input.name = input_name;
 	return std::find(in_coupled_input.begin(), in_coupled_input.end(), input) != in_coupled_input.end()
 			|| std::find(ext_coupled_input.begin(), ext_coupled_input.end(), input) != ext_coupled_input.end();
+}
+
+void MasterFMI::checkPortValidity(std::string fmu_name, std::string port_name, FMIVariableType type, bool check_already_coupled){
+
+	if(fmus.find(fmu_name)==fmus.end())
+		xbt_die("unknown FMU %s",fmu_name.c_str());
+
+	FMIVariableType var_type = fmus[fmu_name]->getType(port_name);
+
+	if(var_type == FMIVariableType::fmiTypeUnknown)
+		xbt_die("unknown variable %s of FMU %s",port_name.c_str(),fmu_name.c_str());
+
+	if(type != FMIVariableType::fmiTypeUnknown && var_type != type)
+		xbt_die("wrong type compatibility for port %s of FMU %s.",port_name.c_str(),fmu_name.c_str());
+
+	if(check_already_coupled && isInputCoupled(fmu_name,port_name))
+		xbt_die("port %s of FMU %s is already coupled to a model",port_name.c_str(),fmu_name.c_str());
 }
 
 }

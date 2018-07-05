@@ -112,7 +112,7 @@ private:
 	void solveCouplings(bool firstIteration);
 	bool solveCoupling(port in, port out, bool checkChange);
 	void solveExternalCoupling();
-
+	void checkPortValidity(std::string fmu_name, std::string port_name, FMIVariableType type, bool check_already_coupled);
 	bool isInputCoupled(std::string fmu, std::string input_name);
 
 public:
