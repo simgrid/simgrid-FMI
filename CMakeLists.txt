@@ -10,8 +10,8 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/tools/cmake/")
 
 # Search for SimGrid
-set(SimGrid_PATH "/home/mecsyco/Documents/simgrid")
 #find_package(SimGrid REQUIRED)
+set(SimGrid_PATH "/home/mecsyco/Documents/simgrid")
 set(SimGrid_INCLUDE_DIR "${SimGrid_PATH}/include")
 set(SimGrid_LIBRARY "${SimGrid_PATH}/lib/libsimgrid.so")
 
@@ -44,7 +44,7 @@ foreach(file include/simgrid-fmi.hpp)
   install(FILES ${file} DESTINATION $ENV{DESTDIR}${CMAKE_INSTALL_PREFIX}/${location})
 endforeach()
 
-foreach (example thermal-cloud)
+foreach (example thermal-cloud lorenz)
   add_executable (s4u-${example}  examples/${example}/s4u-${example}.cpp)
   target_link_libraries(s4u-${example}  simgrid-fmi)
   set_target_properties(s4u-${example}  PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/examples/${example})

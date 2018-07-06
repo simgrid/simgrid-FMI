@@ -65,19 +65,19 @@ void FMIPlugin::readyForSimulation(){
 }
 
 double FMIPlugin::getRealOutput(std::string fmi_name, std::string output_name){
-	return master->getRealOutput(fmi_name, output_name);
+	return master->getRealOutput(fmi_name, output_name, true);
 }
 
 bool FMIPlugin::getBooleanOutput(std::string fmi_name, std::string output_name){
-	return master->getBooleanOutput(fmi_name, output_name);
+	return master->getBooleanOutput(fmi_name, output_name, true);
 }
 
 int FMIPlugin::getIntegerOutput(std::string fmi_name, std::string output_name){
-	return master->getIntegerOutput(fmi_name, output_name);
+	return master->getIntegerOutput(fmi_name, output_name, true);
 }
 
 std::string FMIPlugin::getStringOutput(std::string fmi_name, std::string output_name){
-	return master->getStringOutput(fmi_name, output_name);
+	return master->getStringOutput(fmi_name, output_name, true);
 }
 
 void FMIPlugin::setRealInput(std::string fmi_name, std::string input_name, double value){
@@ -115,6 +115,11 @@ void FMIPlugin::deleteEvents(){
 	master->deleteEvents();
 }
 
+void FMIPlugin::configureOutputLog(std::string output_file_path, std::vector<port> ports_to_monitor){
+	master->configureOutputLog(output_file_path,ports_to_monitor);
+}
+
+
 
 
 /**
@@ -128,10 +133,12 @@ MasterFMI::MasterFMI(const double stepSize)
 	nextEvent = -1;
 	current_time = 0;
 	firstEvent = true;
+	ready_for_simulation = false;
 }
 
 
 MasterFMI::~MasterFMI() {
+	output.close();
 }
 
 
@@ -172,6 +179,7 @@ void MasterFMI::addFMUCS(std::string fmu_uri, std::string fmu_name, bool iterate
 
 void MasterFMI::connectFMU(std::string out_fmu_name,std::string output_port,std::string in_fmu_name,std::string input_port){
 
+	checkNotReadyForSimulation();
 	checkPortValidity(out_fmu_name,output_port,FMIVariableType::fmiTypeUnknown,false);
 	checkPortValidity(in_fmu_name,input_port,fmus[out_fmu_name]->getType(output_port),true);
 
@@ -187,6 +195,7 @@ void MasterFMI::connectFMU(std::string out_fmu_name,std::string output_port,std:
 
 void MasterFMI::connectRealFMUToSimgrid(double (*generateInput)(std::vector<std::string>), std::vector<std::string> params, std::string fmu_name, std::string input_name){
 
+	checkNotReadyForSimulation();
 	checkPortValidity(fmu_name,input_name,FMIVariableType::fmiTypeReal,true);
 
 	real_simgrid_fmu_connection connection;
@@ -203,6 +212,7 @@ void MasterFMI::connectRealFMUToSimgrid(double (*generateInput)(std::vector<std:
 
 void MasterFMI::connectIntegerFMUToSimgrid(int (*generateInput)(std::vector<std::string>), std::vector<std::string> params, std::string fmu_name, std::string input_name){
 
+	checkNotReadyForSimulation();
 	checkPortValidity(fmu_name,input_name,FMIVariableType::fmiTypeInteger,true);
 
 	integer_simgrid_fmu_connection connection;
@@ -219,6 +229,7 @@ void MasterFMI::connectIntegerFMUToSimgrid(int (*generateInput)(std::vector<std:
 
 void MasterFMI::connectBooleanFMUToSimgrid(bool (*generateInput)(std::vector<std::string>), std::vector<std::string> params, std::string fmu_name, std::string input_name){
 
+	checkNotReadyForSimulation();
 	checkPortValidity(fmu_name,input_name,FMIVariableType::fmiTypeBoolean,true);
 
 	boolean_simgrid_fmu_connection connection;
@@ -235,6 +246,7 @@ void MasterFMI::connectBooleanFMUToSimgrid(bool (*generateInput)(std::vector<std
 
 void MasterFMI::connectStringFMUToSimgrid(std::string (*generateInput)(std::vector<std::string>), std::vector<std::string> params, std::string fmu_name, std::string input_name){
 
+	checkNotReadyForSimulation();
 	checkPortValidity(fmu_name,input_name,FMIVariableType::fmiTypeString,true);
 
 	string_simgrid_fmu_connection connection;
@@ -251,9 +263,10 @@ void MasterFMI::connectStringFMUToSimgrid(std::string (*generateInput)(std::vect
 
 
 
-double MasterFMI::getRealOutput(std::string fmi_name, std::string output_name){
+double MasterFMI::getRealOutput(std::string fmi_name, std::string output_name, bool checkPort){
 
-	checkPortValidity(fmi_name,output_name,FMIVariableType::fmiTypeReal,false);
+	if(checkPort)
+		checkPortValidity(fmi_name,output_name,FMIVariableType::fmiTypeReal,false);
 
 	double out;
 	fmiStatus status = fmus[fmi_name]->getValue(output_name,out);
@@ -263,9 +276,10 @@ double MasterFMI::getRealOutput(std::string fmi_name, std::string output_name){
 	return out;
 }
 
-bool MasterFMI::getBooleanOutput(std::string fmi_name, std::string output_name){
+bool MasterFMI::getBooleanOutput(std::string fmi_name, std::string output_name, bool checkPort){
 
-	checkPortValidity(fmi_name,output_name,FMIVariableType::fmiTypeBoolean,false);
+	if(checkPort)
+		checkPortValidity(fmi_name,output_name,FMIVariableType::fmiTypeBoolean,false);
 
 	fmi2Boolean out;
 	fmiStatus status = fmus[fmi_name]->getValue(output_name,out);
@@ -275,9 +289,10 @@ bool MasterFMI::getBooleanOutput(std::string fmi_name, std::string output_name){
 	return out;
 }
 
-int MasterFMI::getIntegerOutput(std::string fmi_name, std::string output_name){
+int MasterFMI::getIntegerOutput(std::string fmi_name, std::string output_name, bool checkPort){
 
-	checkPortValidity(fmi_name,output_name,FMIVariableType::fmiTypeInteger,false);
+	if(checkPort)
+		checkPortValidity(fmi_name,output_name,FMIVariableType::fmiTypeInteger,false);
 
 	int out;
 	fmiStatus status = fmus[fmi_name]->getValue(output_name,out);
@@ -287,9 +302,10 @@ int MasterFMI::getIntegerOutput(std::string fmi_name, std::string output_name){
 	return out;
 }
 
-std::string MasterFMI::getStringOutput(std::string fmi_name, std::string output_name){
+std::string MasterFMI::getStringOutput(std::string fmi_name, std::string output_name, bool checkPort){
 
-	checkPortValidity(fmi_name,output_name,FMIVariableType::fmiTypeString,false);
+	if(checkPort)
+		checkPortValidity(fmi_name,output_name,FMIVariableType::fmiTypeString,false);
 
 	std::string out;
 	fmiStatus status = fmus[fmi_name]->getValue(output_name,out);
@@ -315,7 +331,7 @@ void MasterFMI::setRealInput(std::string fmi_name, std::string input_name, doubl
 			xbt_die("FMU %s failed to perform a doStep(dt=0) after setting an input (you should may be set iterateAfterInput=false when adding the FMU CS).",fmi_name.c_str());
 	}
 
-	if(simgrid_input){
+	if(simgrid_input && ready_for_simulation){
 		solveCouplings(false);
 		manageEventNotification();
 	}
@@ -337,7 +353,7 @@ void MasterFMI::setBooleanInput(std::string fmi_name, std::string input_name, bo
 			xbt_die("FMU %s failed to perform a doStep(dt=0) after setting an input (you should may be set iterateAfterInput=false when adding the FMU CS).",fmi_name.c_str());
 	}
 
-	if(simgrid_input){
+	if(simgrid_input && ready_for_simulation){
 		solveCouplings(false);
 		manageEventNotification();
 	}
@@ -359,7 +375,7 @@ void MasterFMI::setIntegerInput(std::string fmi_name, std::string input_name, in
 			xbt_die("FMU %s failed to perform a doStep(dt=0) after setting an input (you should may be set iterateAfterInput=false when adding the FMU CS).",fmi_name.c_str());
 	}
 
-	if(simgrid_input){
+	if(simgrid_input && ready_for_simulation){
 		solveCouplings(false);
 		manageEventNotification();
 	}
@@ -381,7 +397,7 @@ void MasterFMI::setStringInput(std::string fmi_name, std::string input_name, std
 			xbt_die("FMU %s failed to perform a doStep(dt=0) after setting an input (you should may be set iterateAfterInput=false when adding the FMU CS).",fmi_name.c_str());
 	}
 
-	if(simgrid_input){
+	if(simgrid_input && ready_for_simulation){
 		solveCouplings(false);
 		manageEventNotification();
 	}
@@ -390,14 +406,18 @@ void MasterFMI::setStringInput(std::string fmi_name, std::string input_name, std
 void MasterFMI::solveCouplings(bool firstIteration){
 
 	bool change = true;
+	int i = 0;
 	while(change){
 		change = false;
 		for(port in : in_coupled_input){
-			change = (change || solveCoupling(in, couplings[in],!firstIteration));
+			change = (solveCoupling(in, couplings[in],!firstIteration) || change);
 		}
 		if(firstIteration)
 			firstIteration = false;
+		i++;
 	}
+
+	logOutput();
 }
 
 bool MasterFMI::solveCoupling(port in, port out, bool checkChange){
@@ -405,14 +425,13 @@ bool MasterFMI::solveCoupling(port in, port out, bool checkChange){
 	bool change = false;
 
 	FMIVariableType type = fmus[out.fmu]->getType(out.name);
-	std::string var_name = out.fmu+"_"+out.name;
 	switch(type){
 		case FMIVariableType::fmiTypeReal:
 		{
 			double r_out = getRealOutput(out.fmu, out.name);
-			if( !checkChange || r_out !=  last_real_outputs[var_name]){
+			if( !checkChange || r_out !=  last_real_outputs[out]){
 				setRealInput(in.fmu, in.name, r_out,false);
-				last_real_outputs[var_name] = r_out;
+				last_real_outputs[out] = r_out;
 				change = true;
 			}
 			break;
@@ -420,9 +439,9 @@ bool MasterFMI::solveCoupling(port in, port out, bool checkChange){
 		case FMIVariableType::fmiTypeInteger:
 		{
 			int i_out = getIntegerOutput(out.fmu, out.name);
-			if( !checkChange || i_out != last_int_outputs[var_name]){
+			if( !checkChange || i_out != last_int_outputs[out]){
 				setIntegerInput(in.fmu, in.name, i_out,false);
-				last_int_outputs[var_name] = i_out;
+				last_int_outputs[out] = i_out;
 				change = true;
 			}
 			break;
@@ -430,9 +449,9 @@ bool MasterFMI::solveCoupling(port in, port out, bool checkChange){
 		case FMIVariableType::fmiTypeBoolean:
 		{
 			bool b_out = getBooleanOutput(out.fmu, out.name);
-			if( !checkChange || b_out != last_bool_outputs[var_name]){
+			if( !checkChange || b_out != last_bool_outputs[out]){
 				setBooleanInput(in.fmu, in.name, b_out,false);
-				last_bool_outputs[var_name] = b_out;
+				last_bool_outputs[out] = b_out;
 				change = true;
 			}
 			break;
@@ -440,9 +459,9 @@ bool MasterFMI::solveCoupling(port in, port out, bool checkChange){
 		case FMIVariableType::fmiTypeString:
 		{
 			std::string s_out = getStringOutput(out.fmu, out.name);
-			if( !checkChange || s_out != last_string_outputs[var_name]){
+			if( !checkChange || s_out != last_string_outputs[out]){
 				setStringInput(in.fmu, in.name, s_out,false);
-				last_string_outputs[var_name] = s_out;
+				last_string_outputs[out] = s_out;
 				change = true;
 			}
 			break;
@@ -482,22 +501,26 @@ void MasterFMI::update_actions_state(double now, double delta){
 
 	while(current_time < now){
 		double dt = std::min(commStep, now - current_time);
+		XBT_DEBUG("current_time = %f perform doStep of %f ",current_time, dt);
 		for(auto it : fmus){
 			fmiStatus status = it.second->doStep(current_time, dt, fmiTrue );
 			if(status != fmiOK)
 				xbt_die("FMU %s failed to go from time %f to time %f during the co-simulation",it.first.c_str(),current_time,(current_time+dt));
 		}
-		solveCouplings(true);
-
 		current_time += dt;
+		if(current_time != now){
+			solveCouplings(true);
+		}
 	}
 
 	solveExternalCoupling();
-	solveCouplings(false);
+	solveCouplings(true);
 	manageEventNotification();
+
 }
 
 void MasterFMI::initCouplings(){
+	ready_for_simulation = true;
 	solveExternalCoupling();
 	solveCouplings(true);
 	manageEventNotification();
@@ -544,7 +567,6 @@ void MasterFMI::manageEventNotification(){
 			i--;
 
 			(*handleEvent)(handlerParam);
-
 		}
 	}
 }
@@ -579,6 +601,44 @@ void MasterFMI::checkPortValidity(std::string fmu_name, std::string port_name, F
 	if(check_already_coupled && isInputCoupled(fmu_name,port_name))
 		xbt_die("port %s of FMU %s is already coupled to a model",port_name.c_str(),fmu_name.c_str());
 }
+
+void MasterFMI::checkNotReadyForSimulation(){
+	if(ready_for_simulation)
+		xbt_die("you can not modify the FMI model after calling simgrid::fmi::FMIPlugin::readyForSimulation().");
+}
+
+
+void MasterFMI::configureOutputLog(std::string output_file_path, std::vector<port> ports_to_monitor){
+	output.open(output_file_path, std::ios::out);
+	monitored_ports = ports_to_monitor;
+	for(port p : monitored_ports){
+		checkPortValidity(p.fmu,p.name, FMIVariableType::fmiTypeUnknown,false);
+	}
+}
+
+void MasterFMI::logOutput(){
+	output << current_time;
+
+	for(port p : monitored_ports){
+		switch(fmus[p.fmu]->getType(p.name)){
+			case FMIVariableType::fmiTypeReal:
+				output << ";" << getRealOutput(p.fmu, p.name);
+				break;
+			case FMIVariableType::fmiTypeInteger:
+				output << ";" << getIntegerOutput(p.fmu, p.name);
+				break;
+			case FMIVariableType::fmiTypeBoolean:
+				output << ";" << getBooleanOutput(p.fmu, p.name);
+				break;
+			case FMIVariableType::fmiTypeString:
+				output << ";" << getStringOutput(p.fmu, p.name);
+				break;
+		}
+	}
+
+	output << "\n";
+}
+
 
 }
 }

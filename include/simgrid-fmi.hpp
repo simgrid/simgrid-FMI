@@ -9,10 +9,12 @@
 #include "FMUCoSimulation_v2.h"
 #include "ModelManager.h"
 #include <boost/functional/hash.hpp>
+#include <iostream>
+#include <fstream>
 
 struct port{
-	std::string name;
 	std::string fmu;
+	std::string name;
 };
 
 bool operator== (port a, port b){
@@ -88,15 +90,19 @@ private:
 	std::vector<string_simgrid_fmu_connection> string_ext_couplings;
 
 	std::vector<port> ext_coupled_input;
+	std::ofstream output;
 
+	std::vector<port> monitored_ports;
+
+	bool ready_for_simulation;
 
 	/**
 	 * last output values send to the input
 	 */
-	std::unordered_map<std::string,double> last_real_outputs;
-	std::unordered_map<std::string,int> last_int_outputs;
-	std::unordered_map<std::string,bool> last_bool_outputs;
-	std::unordered_map<std::string,std::string> last_string_outputs;
+	std::unordered_map<port,double> last_real_outputs;
+	std::unordered_map<port,int> last_int_outputs;
+	std::unordered_map<port,bool> last_bool_outputs;
+	std::unordered_map<port,std::string> last_string_outputs;
 
 	double nextEvent;
 	double commStep;
@@ -114,16 +120,19 @@ private:
 	void solveExternalCoupling();
 	void checkPortValidity(std::string fmu_name, std::string port_name, FMIVariableType type, bool check_already_coupled);
 	bool isInputCoupled(std::string fmu, std::string input_name);
+	void logOutput();
+	void checkNotReadyForSimulation();
+
 
 public:
 	MasterFMI(const double stepSize);
 	~MasterFMI();
 	void addFMUCS(std::string fmu_uri, std::string fmu_name, bool iterateAfterInput);
 	void update_actions_state(double now, double delta) override;
-	double getRealOutput(std::string fmi_name, std::string output_name);
-	bool getBooleanOutput(std::string fmi_name, std::string output_name);
-	int getIntegerOutput(std::string fmi_name, std::string output_name);
-	std::string getStringOutput(std::string fmi_name, std::string output_name);
+	double getRealOutput(std::string fmi_name, std::string output_name, bool checkPort=false);
+	bool getBooleanOutput(std::string fmi_name, std::string output_name, bool checkPort=false);
+	int getIntegerOutput(std::string fmi_name, std::string output_name, bool checkPort=false);
+	std::string getStringOutput(std::string fmi_name, std::string output_name, bool checkPort=false);
 	void setRealInput(std::string fmi_name, std::string input_name, double value, bool simgrid_input);
 	void setBooleanInput(std::string fmi_name, std::string input_name, bool value, bool simgrid_input);
 	void setIntegerInput(std::string fmi_name, std::string input_name, int value, bool simgrid_input);
@@ -137,6 +146,8 @@ public:
 	void connectBooleanFMUToSimgrid(bool (*generateInput)(std::vector<std::string>), std::vector<std::string> params, std::string fmu_name, std::string input_name);
 	void connectStringFMUToSimgrid(std::string (*generateInput)(std::vector<std::string>), std::vector<std::string> params, std::string fmu_name, std::string input_name);
 	void initCouplings();
+	void configureOutputLog(std::string output_file_path, std::vector<port> ports_to_monitor);
+
 
 };
 
@@ -162,6 +173,7 @@ public:
 	static void connectBooleanFMUToSimgrid(bool (*generateInput)(std::vector<std::string>), std::vector<std::string> params, std::string fmu_name, std::string input_name);
 	static void connectStringFMUToSimgrid(std::string (*generateInput)(std::vector<std::string>), std::vector<std::string> params, std::string fmu_name, std::string input_name);
 	static void readyForSimulation();
+	static void configureOutputLog(std::string output_file_path, std::vector<port> ports_to_monitor);
 private:
 	FMIPlugin();
 	~FMIPlugin();

@@ -1,251 +1,288 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<fmiModelDescription fmiVersion="1.0" modelName="thermal_system" modelIdentifier="thermal_system" guid="5484e18fa8b26be05583acfb7992c7c7" generationTool="JModelica.org" generationDateAndTime="2018-01-22T11:39:50" variableNamingConvention="structured" numberOfContinuousStates="1" numberOfEventIndicators="1">
-	<TypeDefinitions>
-		<Type name="StateSelect">
-			<EnumerationType min="1" max="5">
-				<Item name="never" description="Do not use as state at all." />
-				<Item name="avoid" description="Use as state, if it cannot be avoided (but only if variable appears differentiated and no other potential state with attribute default, prefer, or always can be selected)." />
-				<Item name="default" description="Use as state if appropriate, but only if variable appears differentiated." />
-				<Item name="prefer" description="Prefer it as state over those having the default value (also variables can be selected, which do not appear differentiated). " />
-				<Item name="always" description="Do use it as a state." />
-			</EnumerationType>
-		</Type>
-	</TypeDefinitions>
-	<VendorAnnotations>
-		<Tool name="JModelica.org">
-			<Annotation name="CompilerVersion" value="unknown" />
-		</Tool>
-	</VendorAnnotations>
-	<ModelVariables>
-		<ScalarVariable name="P_DC" valueReference="58" variability="continuous" causality="output" alias="noAlias">
-			<Real relativeQuantity="false" />
-			<DirectDependency>
-				<Name>P_load_DC</Name>
-				<Name>chiller_status</Name>
-			</DirectDependency>
-		</ScalarVariable>
-		<ScalarVariable name="P_chiller" valueReference="56" variability="continuous" causality="output" alias="noAlias">
-			<Real relativeQuantity="false" />
-			<DirectDependency>
-				<Name>chiller_status</Name>
-				<Name>P_load_DC</Name>
-			</DirectDependency>
-		</ScalarVariable>
-		<ScalarVariable name="P_load_DC" valueReference="52" variability="continuous" causality="input" alias="noAlias">
-			<Real relativeQuantity="false" start="0.0" fixed="false" />
-		</ScalarVariable>
-		<ScalarVariable name="P_other_DC" valueReference="54" variability="continuous" causality="output" alias="noAlias">
-			<Real relativeQuantity="false" />
-			<DirectDependency>
-				<Name>P_load_DC</Name>
-			</DirectDependency>
-		</ScalarVariable>
-		<ScalarVariable name="Q_DC" valueReference="59" variability="continuous" causality="output" alias="noAlias">
-			<Real relativeQuantity="false" />
-			<DirectDependency>
-				<Name>P_load_DC</Name>
-			</DirectDependency>
-		</ScalarVariable>
-		<ScalarVariable name="Q_cooling" valueReference="57" variability="continuous" causality="output" alias="noAlias">
-			<Real relativeQuantity="false" />
-			<DirectDependency>
-				<Name>chiller_status</Name>
-				<Name>P_load_DC</Name>
-			</DirectDependency>
-		</ScalarVariable>
-		<ScalarVariable name="Q_load_DC" valueReference="53" variability="continuous" causality="output" alias="noAlias">
-			<Real relativeQuantity="false" />
-			<DirectDependency>
-				<Name>P_load_DC</Name>
-			</DirectDependency>
-		</ScalarVariable>
-		<ScalarVariable name="Q_other_DC" valueReference="55" variability="continuous" causality="output" alias="noAlias">
-			<Real relativeQuantity="false" />
-			<DirectDependency>
-				<Name>P_load_DC</Name>
-			</DirectDependency>
-		</ScalarVariable>
-		<ScalarVariable name="T_R_in" valueReference="51" variability="continuous" causality="internal" alias="noAlias">
-			<Real relativeQuantity="false" />
-		</ScalarVariable>
-		<ScalarVariable name="der(T_R_in)" valueReference="50" variability="continuous" causality="internal" alias="noAlias">
-			<Real relativeQuantity="false" />
-		</ScalarVariable>
-		<ScalarVariable name="T_R_out" valueReference="60" variability="continuous" causality="output" alias="noAlias">
-			<Real relativeQuantity="false" />
-			<DirectDependency>
-				<Name>chiller_status</Name>
-				<Name>P_load_DC</Name>
-			</DirectDependency>
-		</ScalarVariable>
-		<ScalarVariable name="_block_jacobian_check" valueReference="536870949" variability="parameter" causality="internal" alias="noAlias">
-			<Boolean start="false" />
-		</ScalarVariable>
-		<ScalarVariable name="_block_jacobian_check_tol" valueReference="10" variability="parameter" causality="internal" alias="noAlias">
-			<Real relativeQuantity="false" start="1.0E-6" />
-		</ScalarVariable>
-		<ScalarVariable name="_block_solver_experimental_mode" valueReference="268435481" variability="parameter" causality="internal" alias="noAlias">
-			<Integer start="0" />
-		</ScalarVariable>
-		<ScalarVariable name="_block_solver_profiling" valueReference="536870950" variability="parameter" causality="internal" alias="noAlias">
-			<Boolean start="false" />
-		</ScalarVariable>
-		<ScalarVariable name="_cs_experimental_mode" valueReference="268435482" variability="parameter" causality="internal" alias="noAlias">
-			<Integer start="0" />
-		</ScalarVariable>
-		<ScalarVariable name="_cs_rel_tol" valueReference="11" variability="parameter" causality="internal" alias="noAlias">
-			<Real relativeQuantity="false" start="1.0E-6" />
-		</ScalarVariable>
-		<ScalarVariable name="_cs_solver" valueReference="268435483" variability="parameter" causality="internal" alias="noAlias">
-			<Integer start="0" />
-		</ScalarVariable>
-		<ScalarVariable name="_cs_step_size" valueReference="12" variability="parameter" causality="internal" alias="noAlias">
-			<Real relativeQuantity="false" start="0.001" />
-		</ScalarVariable>
-		<ScalarVariable name="_enforce_bounds" valueReference="536870951" variability="parameter" causality="internal" alias="noAlias">
-			<Boolean start="true" />
-		</ScalarVariable>
-		<ScalarVariable name="_events_default_tol" valueReference="13" variability="parameter" causality="internal" alias="noAlias">
-			<Real relativeQuantity="false" start="1.0E-10" />
-		</ScalarVariable>
-		<ScalarVariable name="_events_tol_factor" valueReference="14" variability="parameter" causality="internal" alias="noAlias">
-			<Real relativeQuantity="false" start="1.0E-4" />
-		</ScalarVariable>
-		<ScalarVariable name="_iteration_variable_scaling" valueReference="268435484" variability="parameter" causality="internal" alias="noAlias">
-			<Integer start="1" />
-		</ScalarVariable>
-		<ScalarVariable name="_log_level" valueReference="268435485" variability="parameter" causality="internal" alias="noAlias">
-			<Integer start="3" />
-		</ScalarVariable>
-		<ScalarVariable name="_nle_active_bounds_mode" valueReference="268435486" variability="parameter" causality="internal" alias="noAlias">
-			<Integer start="0" />
-		</ScalarVariable>
-		<ScalarVariable name="_nle_brent_ignore_error" valueReference="536870952" variability="parameter" causality="internal" alias="noAlias">
-			<Boolean start="false" />
-		</ScalarVariable>
-		<ScalarVariable name="_nle_jacobian_calculation_mode" valueReference="268435487" variability="parameter" causality="internal" alias="noAlias">
-			<Integer start="0" />
-		</ScalarVariable>
-		<ScalarVariable name="_nle_jacobian_finite_difference_delta" valueReference="15" variability="parameter" causality="internal" alias="noAlias">
-			<Real relativeQuantity="false" start="1.490116119384766E-8" />
-		</ScalarVariable>
-		<ScalarVariable name="_nle_jacobian_update_mode" valueReference="268435488" variability="parameter" causality="internal" alias="noAlias">
-			<Integer start="2" />
-		</ScalarVariable>
-		<ScalarVariable name="_nle_solver_check_jac_cond" valueReference="536870953" variability="parameter" causality="internal" alias="noAlias">
-			<Boolean start="false" />
-		</ScalarVariable>
-		<ScalarVariable name="_nle_solver_default_tol" valueReference="16" variability="parameter" causality="internal" alias="noAlias">
-			<Real relativeQuantity="false" start="1.0E-10" />
-		</ScalarVariable>
-		<ScalarVariable name="_nle_solver_exit_criterion" valueReference="268435489" variability="parameter" causality="internal" alias="noAlias">
-			<Integer start="3" />
-		</ScalarVariable>
-		<ScalarVariable name="_nle_solver_max_iter" valueReference="268435490" variability="parameter" causality="internal" alias="noAlias">
-			<Integer start="100" />
-		</ScalarVariable>
-		<ScalarVariable name="_nle_solver_max_iter_no_jacobian" valueReference="268435491" variability="parameter" causality="internal" alias="noAlias">
-			<Integer start="10" />
-		</ScalarVariable>
-		<ScalarVariable name="_nle_solver_max_residual_scaling_factor" valueReference="17" variability="parameter" causality="internal" alias="noAlias">
-			<Real relativeQuantity="false" start="1.0E10" />
-		</ScalarVariable>
-		<ScalarVariable name="_nle_solver_min_residual_scaling_factor" valueReference="18" variability="parameter" causality="internal" alias="noAlias">
-			<Real relativeQuantity="false" start="1.0E-10" />
-		</ScalarVariable>
-		<ScalarVariable name="_nle_solver_min_tol" valueReference="19" variability="parameter" causality="internal" alias="noAlias">
-			<Real relativeQuantity="false" start="1.0E-12" />
-		</ScalarVariable>
-		<ScalarVariable name="_nle_solver_regularization_tolerance" valueReference="20" variability="parameter" causality="internal" alias="noAlias">
-			<Real relativeQuantity="false" start="-1.0" />
-		</ScalarVariable>
-		<ScalarVariable name="_nle_solver_step_limit_factor" valueReference="21" variability="parameter" causality="internal" alias="noAlias">
-			<Real relativeQuantity="false" start="10.0" />
-		</ScalarVariable>
-		<ScalarVariable name="_nle_solver_tol_factor" valueReference="22" variability="parameter" causality="internal" alias="noAlias">
-			<Real relativeQuantity="false" start="1.0E-4" />
-		</ScalarVariable>
-		<ScalarVariable name="_nle_solver_use_last_integrator_step" valueReference="536870954" variability="parameter" causality="internal" alias="noAlias">
-			<Boolean start="true" />
-		</ScalarVariable>
-		<ScalarVariable name="_nle_solver_use_nominals_as_fallback" valueReference="536870955" variability="parameter" causality="internal" alias="noAlias">
-			<Boolean start="true" />
-		</ScalarVariable>
-		<ScalarVariable name="_rescale_after_singular_jac" valueReference="536870956" variability="parameter" causality="internal" alias="noAlias">
-			<Boolean start="true" />
-		</ScalarVariable>
-		<ScalarVariable name="_rescale_each_step" valueReference="536870957" variability="parameter" causality="internal" alias="noAlias">
-			<Boolean start="false" />
-		</ScalarVariable>
-		<ScalarVariable name="_residual_equation_scaling" valueReference="268435492" variability="parameter" causality="internal" alias="noAlias">
-			<Integer start="1" />
-		</ScalarVariable>
-		<ScalarVariable name="_runtime_log_to_file" valueReference="536870958" variability="parameter" causality="internal" alias="noAlias">
-			<Boolean start="false" />
-		</ScalarVariable>
-		<ScalarVariable name="_time_events_default_tol" valueReference="23" variability="parameter" causality="internal" alias="noAlias">
-			<Real relativeQuantity="false" start="2.220446049250313E-14" />
-		</ScalarVariable>
-		<ScalarVariable name="_use_Brent_in_1d" valueReference="536870959" variability="parameter" causality="internal" alias="noAlias">
-			<Boolean start="true" />
-		</ScalarVariable>
-		<ScalarVariable name="_use_jacobian_equilibration" valueReference="536870960" variability="parameter" causality="internal" alias="noAlias">
-			<Boolean start="false" />
-		</ScalarVariable>
-		<ScalarVariable name="_use_newton_for_brent" valueReference="536870961" variability="parameter" causality="internal" alias="noAlias">
-			<Boolean start="true" />
-		</ScalarVariable>
-		<ScalarVariable name="air_density" valueReference="3" variability="parameter" causality="internal" alias="noAlias">
-			<Real relativeQuantity="false" start="1225.0" />
-		</ScalarVariable>
-		<ScalarVariable name="air_specific_heat" valueReference="5" variability="parameter" causality="internal" alias="noAlias">
-			<Real relativeQuantity="false" start="1.006" />
-		</ScalarVariable>
-		<ScalarVariable name="alpha" valueReference="4" variability="parameter" causality="internal" alias="noAlias">
-			<Real relativeQuantity="false" start="0.2" />
-		</ScalarVariable>
-		<ScalarVariable name="chiller_EER" valueReference="7" variability="parameter" causality="internal" alias="noAlias">
-			<Real relativeQuantity="false" start="0.9" />
-		</ScalarVariable>
-		<ScalarVariable name="chiller_status" valueReference="268435520" variability="discrete" causality="input" alias="noAlias">
-			<Integer start="0" fixed="false" />
-		</ScalarVariable>
-		<ScalarVariable name="cool_inefficiency" valueReference="6" variability="parameter" causality="internal" alias="noAlias">
-			<Real relativeQuantity="false" start="0.9" />
-		</ScalarVariable>
-		<ScalarVariable name="m_air_total" valueReference="24" variability="parameter" causality="internal" alias="noAlias">
-			<Real relativeQuantity="false" />
-		</ScalarVariable>
-		<ScalarVariable name="power_supply_status" valueReference="268435519" variability="discrete" causality="output" alias="noAlias">
-			<Integer />
-			<DirectDependency>
-			</DirectDependency>
-		</ScalarVariable>
-		<ScalarVariable name="room_height" valueReference="2" variability="parameter" causality="internal" alias="noAlias">
-			<Real relativeQuantity="false" start="4.0" />
-		</ScalarVariable>
-		<ScalarVariable name="room_length" valueReference="0" variability="parameter" causality="internal" alias="noAlias">
-			<Real relativeQuantity="false" start="10.0" />
-		</ScalarVariable>
-		<ScalarVariable name="room_width" valueReference="1" variability="parameter" causality="internal" alias="noAlias">
-			<Real relativeQuantity="false" start="6.0" />
-		</ScalarVariable>
-		<ScalarVariable name="temp_1" valueReference="536870977" variability="discrete" causality="internal" alias="noAlias">
-			<Boolean />
-		</ScalarVariable>
-		<ScalarVariable name="temp_2" valueReference="536870978" variability="discrete" causality="internal" alias="noAlias">
-			<Boolean />
-		</ScalarVariable>
-		<ScalarVariable name="temp_desired" valueReference="9" variability="parameter" causality="internal" alias="noAlias">
-			<Real relativeQuantity="false" start="24.0" />
-		</ScalarVariable>
-		<ScalarVariable name="temp_max" valueReference="8" variability="parameter" causality="internal" alias="noAlias">
-			<Real relativeQuantity="false" start="40.0" />
-		</ScalarVariable>
-	</ModelVariables>
-	<Implementation>
-		<CoSimulation_Tool>
-			<Capabilities canHandleVariableCommunicationStepSize="true" canHandleEvents="true" canRejectSteps="false" canInterpolateInputs="true" maxOutputDerivativeOrder="0" canRunAsynchronuously="false" canSignalEvents="false" canBeInstantiatedOnlyOncePerProcess="true" canNotUseMemoryManagementFunctions="false" />
-		</CoSimulation_Tool>
-	</Implementation>
+<fmiModelDescription
+  fmiVersion="2.0"
+  modelName="thermal_system"
+  guid="{8f170c98-a968-4ad1-b33e-064958b93e2e}"
+  description=""
+  generationTool="OpenModelica Compiler OpenModelica 1.13.0~dev-387-g11a65a1"
+  generationDateAndTime="2018-06-28T00:39:51Z"
+  variableNamingConvention="structured"
+  numberOfEventIndicators="3">
+  <CoSimulation
+    modelIdentifier="thermal_system"
+    needsExecutionTool="false"
+    canHandleVariableCommunicationStepSize="true"
+    canInterpolateInputs="false"
+    maxOutputDerivativeOrder="1"
+    canRunAsynchronuously = "false"
+    canBeInstantiatedOnlyOncePerProcess="false"
+    canNotUseMemoryManagementFunctions="false"
+    canGetAndSetFMUstate="false"
+    canSerializeFMUstate="false"
+     />
+  <LogCategories>
+    <Category name="logEvents" />
+    <Category name="logSingularLinearSystems" />
+    <Category name="logNonlinearSystems" />
+    <Category name="logDynamicStateSelection" />
+    <Category name="logStatusWarning" />
+    <Category name="logStatusDiscard" />
+    <Category name="logStatusError" />
+    <Category name="logStatusFatal" />
+    <Category name="logStatusPending" />
+    <Category name="logAll" />
+    <Category name="logFmi2Call" />
+  </LogCategories>
+  <DefaultExperiment startTime="0.0" stopTime="1.0" tolerance="1e-06"/>
+  <ModelVariables>
+  <!-- Index of variable = "1" -->
+  <ScalarVariable
+    name="T_R_in"
+    valueReference="0"
+    variability="continuous"
+    causality="local"
+    initial="calculated">
+    <Real/>
+  </ScalarVariable>
+  <!-- Index of variable = "2" -->
+  <ScalarVariable
+    name="der(T_R_in)"
+    valueReference="1"
+    variability="continuous"
+    causality="local"
+    initial="calculated">
+    <Real derivative="1"/>
+  </ScalarVariable>
+  <!-- Index of variable = "3" -->
+  <ScalarVariable
+    name="P_DC"
+    valueReference="2"
+    variability="continuous"
+    causality="output"
+    initial="calculated">
+    <Real/>
+  </ScalarVariable>
+  <!-- Index of variable = "4" -->
+  <ScalarVariable
+    name="P_chiller"
+    valueReference="3"
+    variability="continuous"
+    causality="output"
+    initial="calculated">
+    <Real/>
+  </ScalarVariable>
+  <!-- Index of variable = "5" -->
+  <ScalarVariable
+    name="P_load_DC"
+    valueReference="4"
+    variability="continuous"
+    causality="input"
+    >
+    <Real start="0.0"/>
+  </ScalarVariable>
+  <!-- Index of variable = "6" -->
+  <ScalarVariable
+    name="P_other_DC"
+    valueReference="5"
+    variability="continuous"
+    causality="output"
+    initial="calculated">
+    <Real/>
+  </ScalarVariable>
+  <!-- Index of variable = "7" -->
+  <ScalarVariable
+    name="Q_DC"
+    valueReference="6"
+    variability="continuous"
+    causality="output"
+    initial="calculated">
+    <Real/>
+  </ScalarVariable>
+  <!-- Index of variable = "8" -->
+  <ScalarVariable
+    name="Q_cooling"
+    valueReference="7"
+    variability="continuous"
+    causality="output"
+    initial="calculated">
+    <Real/>
+  </ScalarVariable>
+  <!-- Index of variable = "9" -->
+  <ScalarVariable
+    name="Q_load_DC"
+    valueReference="8"
+    variability="continuous"
+    causality="output"
+    initial="calculated">
+    <Real/>
+  </ScalarVariable>
+  <!-- Index of variable = "10" -->
+  <ScalarVariable
+    name="Q_other_DC"
+    valueReference="9"
+    variability="continuous"
+    causality="output"
+    initial="calculated">
+    <Real/>
+  </ScalarVariable>
+  <!-- Index of variable = "11" -->
+  <ScalarVariable
+    name="T_R_out"
+    valueReference="10"
+    variability="continuous"
+    causality="output"
+    initial="calculated">
+    <Real/>
+  </ScalarVariable>
+  <!-- Index of variable = "12" -->
+  <ScalarVariable
+    name="air_density"
+    valueReference="11"
+    variability="fixed"
+    causality="parameter"
+    initial="exact">
+    <Real start="1225.0"/>
+  </ScalarVariable>
+  <!-- Index of variable = "13" -->
+  <ScalarVariable
+    name="air_specific_heat"
+    valueReference="12"
+    variability="fixed"
+    causality="parameter"
+    initial="exact">
+    <Real start="1.006"/>
+  </ScalarVariable>
+  <!-- Index of variable = "14" -->
+  <ScalarVariable
+    name="alpha"
+    valueReference="13"
+    variability="fixed"
+    causality="parameter"
+    initial="exact">
+    <Real start="0.2"/>
+  </ScalarVariable>
+  <!-- Index of variable = "15" -->
+  <ScalarVariable
+    name="chiller_EER"
+    valueReference="14"
+    variability="fixed"
+    causality="parameter"
+    initial="exact">
+    <Real start="0.9"/>
+  </ScalarVariable>
+  <!-- Index of variable = "16" -->
+  <ScalarVariable
+    name="cool_inefficiency"
+    valueReference="15"
+    variability="fixed"
+    causality="parameter"
+    initial="exact">
+    <Real start="0.9"/>
+  </ScalarVariable>
+  <!-- Index of variable = "17" -->
+  <ScalarVariable
+    name="m_air_total"
+    valueReference="16"
+    variability="fixed"
+    causality="calculatedParameter"
+    initial="calculated">
+    <Real/>
+  </ScalarVariable>
+  <!-- Index of variable = "18" -->
+  <ScalarVariable
+    name="room_height"
+    valueReference="17"
+    variability="fixed"
+    causality="parameter"
+    initial="exact">
+    <Real start="4.0"/>
+  </ScalarVariable>
+  <!-- Index of variable = "19" -->
+  <ScalarVariable
+    name="room_length"
+    valueReference="18"
+    variability="fixed"
+    causality="parameter"
+    initial="exact">
+    <Real start="10.0"/>
+  </ScalarVariable>
+  <!-- Index of variable = "20" -->
+  <ScalarVariable
+    name="room_width"
+    valueReference="19"
+    variability="fixed"
+    causality="parameter"
+    initial="exact">
+    <Real start="6.0"/>
+  </ScalarVariable>
+  <!-- Index of variable = "21" -->
+  <ScalarVariable
+    name="temp_desired"
+    valueReference="20"
+    variability="fixed"
+    causality="parameter"
+    initial="exact">
+    <Real start="24.0"/>
+  </ScalarVariable>
+  <!-- Index of variable = "22" -->
+  <ScalarVariable
+    name="temp_max"
+    valueReference="21"
+    variability="fixed"
+    causality="parameter"
+    initial="exact">
+    <Real start="40.0"/>
+  </ScalarVariable>
+  <!-- Index of variable = "23" -->
+  <ScalarVariable
+    name="chiller_status"
+    valueReference="0"
+    variability="discrete"
+    causality="input">
+    <Integer start="0"/>
+  </ScalarVariable>
+  <!-- Index of variable = "24" -->
+  <ScalarVariable
+    name="power_supply_status"
+    valueReference="1"
+    variability="discrete"
+    causality="output"
+    initial="calculated">
+    <Integer/>
+  </ScalarVariable>
+  <!-- Index of variable = "25" -->
+  <ScalarVariable
+    name="_D_whenCondition1"
+    valueReference="0"
+    variability="discrete"
+    causality="local"
+    initial="calculated">
+    <Boolean/>
+  </ScalarVariable>
+  <!-- Index of variable = "26" -->
+  <ScalarVariable
+    name="_D_whenCondition2"
+    valueReference="1"
+    variability="discrete"
+    causality="local"
+    initial="calculated">
+    <Boolean/>
+  </ScalarVariable>
+  </ModelVariables>
+  <ModelStructure>
+    <Outputs>
+      <Unknown index="3" dependencies="5 23" dependenciesKind="dependent dependent" />
+      <Unknown index="4" dependencies="5 23" dependenciesKind="dependent dependent" />
+      <Unknown index="6" dependencies="5" dependenciesKind="dependent" />
+      <Unknown index="7" dependencies="5" dependenciesKind="dependent" />
+      <Unknown index="8" dependencies="5 23" dependenciesKind="dependent dependent" />
+      <Unknown index="9" dependencies="5" dependenciesKind="dependent" />
+      <Unknown index="10" dependencies="5" dependenciesKind="dependent" />
+      <Unknown index="11" dependencies="1 5 23" dependenciesKind="dependent dependent dependent" />
+      <Unknown index="24" dependencies="1" dependenciesKind="dependent" />
+    </Outputs>
+    <Derivatives>
+      <Unknown index="2" dependencies="5 23" dependenciesKind="dependent dependent" />
+    </Derivatives>
+  </ModelStructure>
 </fmiModelDescription>
