@@ -1,5 +1,8 @@
 image: simgrid/stable
 
+variables:
+  GIT_SUBMODULE_STRATEGY: recursive
+
 test-git:
   script:
   - apt-get update
