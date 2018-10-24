@@ -1,3 +1,6 @@
+This project is [hosted on framagit](https://framagit.org/simgrid/simgrid-FMI), and sometimes mirrored to GitHub.
+Please use our [framagit project](https://framagit.org/simgrid/simgrid-FMI).
+
 # simgrid-FMI
 Co-simulation of Distributed IT Infrastructures and continuous Cyber-Physical Systems, with SimGrid and FMI
 
