@@ -1,0 +1,11 @@
+image: simgrid/stable
+
+test-git:
+  script:
+  - apt-get update
+  - apt-get install -y cmake build-essential libboost-dev
+  - cmake .
+  - make VERBOSE=1
+  - ctest
+
+ 
