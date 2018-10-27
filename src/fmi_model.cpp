@@ -46,7 +46,7 @@ void FMIPlugin::addFMUCS(std::string fmu_uri, std::string fmu_name, const double
 			realOutputNames, intOutputNames, boolOutputNames, stringOutputNames);
 
 	fmus[fmu_name] = fmu;
-	all_existing_models->push_back(fmu);
+	all_existing_models.push_back(fmu);
 }
 
 
@@ -70,8 +70,7 @@ void FMIPlugin::addFMUME(std::string fmu_uri, std::string fmu_name,
 				realOutputNames, intOutputNames, boolOutputNames, stringOutputNames);
 
 	fmus[fmu_name] = fmu;
-	all_existing_models->push_back(fmu);
-
+	all_existing_models.push_back(fmu);
 }
 
 
