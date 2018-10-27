@@ -4,7 +4,7 @@ test-git:
   script:
   - apt-get update
   - apt-get install -y cmake build-essential libboost-dev git
-  - mkdir -p deps; git clone --depth=1 //git.code.sf.net/p/fmipp/code deps/fmipp 
+  - mkdir -p deps; git clone --depth=1 https://git.code.sf.net/p/fmipp/code deps/fmipp 
   - cmake .
   - make VERBOSE=1
   - ctest
