@@ -1,4 +1,4 @@
-image: simgrid/stable
+image: simgrid/unstable
 
 test-git:
   script:
