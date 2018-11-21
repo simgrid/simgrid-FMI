@@ -5,168 +5,179 @@
 #include <vector>
 #include <unordered_map>
 #include <simgrid/kernel/resource/Model.hpp>
-#include <VariableStepSizeFMU.h>
-#include <IntegratorType.h>
-#include <IncrementalFMU.h>
+#include "FMUCoSimulation_v1.h"
+#include "FMUCoSimulation_v2.h"
+#include "ModelManager.h"
+#include <boost/functional/hash.hpp>
+#include <iostream>
+#include <fstream>
+
+struct port{
+	std::string fmu;
+	std::string name;
+};
+
+bool operator== (port a, port b){
+	return (a.fmu == b.fmu) && (a.name == b.name);
+}
+
+namespace std{
+	using boost::hash_value;
+	using boost::hash_combine;
+	template<> struct hash<port>{
+		size_t operator()(const port& k) const{
+			std::size_t seed = 0;
+			hash_combine(seed,hash_value(k.fmu));
+			hash_combine(seed,hash_value(k.name));
+
+			return seed;
+		}
+	};
+}
 
 namespace simgrid{
 namespace fmi{
 
-class FMUModel : public simgrid::kernel::resource::Model{
+struct real_simgrid_fmu_connection{
+	port in;
+	double (*generateInput)(std::vector<std::string>);
+	std::vector<std::string> params;
+};
 
-public:
-	FMUModel(std::vector<std::string> *initRealInputNames, std::vector<double> *initRealInputVals,
-			std::vector<std::string> *initIntInputNames, std::vector<int> *initIntInputVals,
-			std::vector<std::string> *initBoolInputNames, std::vector<bool> *initBoolInputVals,
-			std::vector<std::string> *initStringInputNames, std::vector<std::string> *initStringInputVals,
-			std::vector<std::string> *realOutputNames,
-			std::vector<std::string> *intOutputNames,
-			std::vector<std::string> *boolOutputNames,
-			std::vector<std::string> *stringOutputNames);
-	virtual ~FMUModel();
-	double next_occuring_event(double now) override;
-	void update_actions_state(double now, double delta) override;
-	virtual double getRealOutputs(std::string name)=0;
-	virtual bool getBoolOutputs(std::string name)=0;
-	virtual int getIntegerOutputs(std::string name)=0;
-	virtual std::string getStringOutputs(std::string name)=0;
-	virtual void setRealInput(std::string name, double value, bool iterateAfter=true, bool sendNow=true);
-	virtual void setBoolInput(std::string name, bool value, bool iterateAfter=true, bool sendNow=true);
-	virtual void setIntegerInput(std::string name, int value, bool iterateAfter=true, bool sendNow=true);
-	virtual void setStringInput(std::string name, std::string value, bool iterateAfter=true, bool sendNow=true);
-	virtual void registerEvent(bool (*condition)(std::vector<std::string>),
-			void (*handleEvent)(std::vector<std::string>),
-			std::vector<std::string> handlerParam) = 0;
-	virtual void deleteEvents() = 0;
+struct integer_simgrid_fmu_connection{
+	port in;
+	int (*generateInput)(std::vector<std::string>);
+	std::vector<std::string> params;
+};
 
-protected:
-	std::unordered_map<std::string, int> real_input_names;
-	std::unordered_map<std::string, int> bool_input_names;
-	std::unordered_map<std::string, int> int_input_names;
-	std::unordered_map<std::string, int> string_input_names;
+struct boolean_simgrid_fmu_connection{
+	port in;
+	bool (*generateInput)(std::vector<std::string>);
+	std::vector<std::string> params;
+};
 
-	std::vector<double> real_input_values;
-	std::vector<char> bool_input_values;
-	std::vector<int> int_input_values;
-	std::vector<std::string> string_input_values;
+struct string_simgrid_fmu_connection{
+	port in;
+	std::string (*generateInput)(std::vector<std::string>);
+	std::vector<std::string> params;
+};
 
-	std::unordered_map<std::string, int> real_output_names;
-	std::unordered_map<std::string, int> int_output_names;
-	std::unordered_map<std::string, int> bool_output_names;
-	std::unordered_map<std::string, int> string_output_names;
+
+class MasterFMI : public simgrid::kernel::resource::Model{
+
+private:
+	/*
+	 * The set of FMUs to simulate
+	 */
+	std::unordered_map<std::string,FMUCoSimulationBase*> fmus;
+	/*
+	 * Indicate if an FMU require an iteration (i.e. doStep(O)) to update its outputs when setting input
+	 */
+	std::unordered_map<std::string,bool> iterate_input;
+
+	/**
+	 * coupling between FMUs (nb: key=input value=output !)
+	 */
+	std::unordered_map<port,port> couplings;
+	std::vector<port> in_coupled_input;
+
+	/**
+	 * coupling between SimGrid models and FMUs
+	 */
+	std::vector<real_simgrid_fmu_connection> real_ext_couplings;
+	std::vector<integer_simgrid_fmu_connection> integer_ext_couplings;
+	std::vector<boolean_simgrid_fmu_connection> boolean_ext_couplings;
+	std::vector<string_simgrid_fmu_connection> string_ext_couplings;
+
+	std::vector<port> ext_coupled_input;
+	std::ofstream output;
+
+	std::vector<port> monitored_ports;
+
+	bool ready_for_simulation;
+
+	/**
+	 * last output values send to the input
+	 */
+	std::unordered_map<port,double> last_real_outputs;
+	std::unordered_map<port,int> last_int_outputs;
+	std::unordered_map<port,bool> last_bool_outputs;
+	std::unordered_map<port,std::string> last_string_outputs;
+
+	double nextEvent;
+	double commStep;
+	double current_time;
+
+	bool firstEvent;
 
 	std::vector<void (*)(std::vector<std::string>)> event_handlers;
 	std::vector<bool (*)(std::vector<std::string>)> event_conditions;
 	std::vector<std::vector<std::string>> event_params;
-};
 
-
-
-class FMUxxCS : public FMUModel{
-
-private:
-	VariableStepSizeFMU *model;
-	double nextEvent;
-	double commStep;
 	void manageEventNotification();
-	double current_time;
+	void solveCouplings(bool firstIteration);
+	bool solveCoupling(port in, port out, bool checkChange);
+	void solveExternalCoupling();
+	void checkPortValidity(std::string fmu_name, std::string port_name, FMIVariableType type, bool check_already_coupled);
+	bool isInputCoupled(std::string fmu, std::string input_name);
+	void logOutput();
+	void checkNotReadyForSimulation();
+
 
 public:
-	FMUxxCS(std::string fmu_uri, std::string fmu_name, std::string fmu_instance_name, const double startTime, 	const double stepSize,
-					std::vector<std::string> *initRealInputNames, std::vector<double> *initRealInputVals,
-					std::vector<std::string> *initIntInputNames, std::vector<int> *initIntInputVals,
-					std::vector<std::string> *initBoolInputNames, std::vector<bool> *initBoolInputVals,
-					std::vector<std::string> *initStringInputNames, std::vector<std::string> *initStringInputVals,
-					std::vector<std::string> *realOutputNames,
-					std::vector<std::string> *intOutputNames,
-					std::vector<std::string> *boolOutputNames,
-					std::vector<std::string> *stringOutputNames);
-	~FMUxxCS();
+	MasterFMI(const double stepSize);
+	~MasterFMI();
+	void addFMUCS(std::string fmu_uri, std::string fmu_name, bool iterateAfterInput);
 	void update_actions_state(double now, double delta) override;
-	double getRealOutputs(std::string name) override;
-	bool getBoolOutputs(std::string name) override;
-	int getIntegerOutputs(std::string name) override;
-	std::string getStringOutputs(std::string name) override;
-	void setRealInput(std::string name, double value, bool iterateAfter, bool sendNow) override;
-	void setBoolInput(std::string name, bool value, bool iterateAfter, bool sendNow) override;
-	void setIntegerInput(std::string name, int value, bool iterateAfter, bool sendNow) override;
-	void setStringInput(std::string name, std::string value, bool iterateAfter, bool sendNow) override;
+	double getRealOutput(std::string fmi_name, std::string output_name, bool checkPort=false);
+	bool getBooleanOutput(std::string fmi_name, std::string output_name, bool checkPort=false);
+	int getIntegerOutput(std::string fmi_name, std::string output_name, bool checkPort=false);
+	std::string getStringOutput(std::string fmi_name, std::string output_name, bool checkPort=false);
+	void setRealInput(std::string fmi_name, std::string input_name, double value, bool simgrid_input);
+	void setBooleanInput(std::string fmi_name, std::string input_name, bool value, bool simgrid_input);
+	void setIntegerInput(std::string fmi_name, std::string input_name, int value, bool simgrid_input);
+	void setStringInput(std::string fmi_name, std::string input_name, std::string value, bool simgrid_input);
 	double next_occuring_event(double now) override;
-	void registerEvent(bool (*condition)(std::vector<std::string>),
-			void (*handleEvent)(std::vector<std::string>),
-			std::vector<std::string> params) override;
-	void deleteEvents() override;
+	void registerEvent(bool (*condition)(std::vector<std::string>), void (*handleEvent)(std::vector<std::string>), std::vector<std::string> params);
+	void deleteEvents();
+	void connectFMU(std::string out_fmu_name,std::string output_port,std::string in_fmu_name,std::string input_port);
+	void connectRealFMUToSimgrid(double (*generateInput)(std::vector<std::string>), std::vector<std::string> params, std::string fmu_name, std::string input_name);
+	void connectIntegerFMUToSimgrid(int (*generateInput)(std::vector<std::string>), std::vector<std::string> params, std::string fmu_name, std::string input_name);
+	void connectBooleanFMUToSimgrid(bool (*generateInput)(std::vector<std::string>), std::vector<std::string> params, std::string fmu_name, std::string input_name);
+	void connectStringFMUToSimgrid(std::string (*generateInput)(std::vector<std::string>), std::vector<std::string> params, std::string fmu_name, std::string input_name);
+	void initCouplings();
+	void configureOutputLog(std::string output_file_path, std::vector<port> ports_to_monitor);
+
 
 };
 
-class FMUxxME : public FMUModel{
 
+class FMIPlugin {
+
+public:
+	static void addFMUCS(std::string fmu_uri, std::string fmu_name, bool iterateAfterInput=true);
+	static void connectFMU(std::string out_fmu_name,std::string output_port,std::string in_fmu_name,std::string input_port);
+	static void initFMIPlugin(double communication_step);
+	static double getRealOutput(std::string fmi_name, std::string output_name);
+	static bool getBooleanOutput(std::string fmi_name, std::string output_name);
+	static int getIntegerOutput(std::string fmi_name, std::string output_name);
+	static std::string getStringOutput(std::string fmi_name, std::string output_name);
+	static void setRealInput(std::string fmi_name, std::string input_name, double value);
+	static void setBooleanInput(std::string fmi_name, std::string input_name, bool value);
+	static void setIntegerInput(std::string fmi_name, std::string input_name, int value);
+	static void setStringInput(std::string fmi_name, std::string input_name, std::string value);
+	static void registerEvent(bool (*condition)(std::vector<std::string>), void (*handleEvent)(std::vector<std::string>), std::vector<std::string> params);
+	static void deleteEvents();
+	static void connectRealFMUToSimgrid(double (*generateInput)(std::vector<std::string>), std::vector<std::string> params, std::string fmu_name, std::string input_name);
+	static void connectIntegerFMUToSimgrid(int (*generateInput)(std::vector<std::string>), std::vector<std::string> params, std::string fmu_name, std::string input_name);
+	static void connectBooleanFMUToSimgrid(bool (*generateInput)(std::vector<std::string>), std::vector<std::string> params, std::string fmu_name, std::string input_name);
+	static void connectStringFMUToSimgrid(std::string (*generateInput)(std::vector<std::string>), std::vector<std::string> params, std::string fmu_name, std::string input_name);
+	static void readyForSimulation();
+	static void configureOutputLog(std::string output_file_path, std::vector<port> ports_to_monitor);
 private:
-	IncrementalFMU *model;
-	double nextEvent;
-	double commStep;
-	void manageEventNotification();
-	double current_time;
-
-public:
-	FMUxxME(std::string fmu_uri, std::string fmu_name, std::string fmu_instance_name, const double startTime,
-					const double integratorStepSize, const double eventCheckStepSize, const double lookahead, IntegratorType integrator,
-					std::vector<std::string> *initRealInputNames, std::vector<double> *initRealInputVals,
-					std::vector<std::string> *initIntInputNames, std::vector<int> *initIntInputVals,
-					std::vector<std::string> *initBoolInputNames, std::vector<bool> *initBoolInputVals,
-					std::vector<std::string> *initStringInputNames, std::vector<std::string> *initStringInputVals,
-					std::vector<std::string> *realOutputNames,
-					std::vector<std::string> *intOutputNames,
-					std::vector<std::string> *boolOutputNames,
-					std::vector<std::string> *stringOutputNames);
-	~FMUxxME();
-	void update_actions_state(double now, double delta) override;
-	double getRealOutputs(std::string name) override;
-	bool getBoolOutputs(std::string name) override;
-	int getIntegerOutputs(std::string name) override;
-	std::string getStringOutputs(std::string name) override;
-	void setRealInput(std::string name, double value, bool iterateAfter, bool sendNow) override;
-	void setBoolInput(std::string name, bool value, bool iterateAfter, bool sendNow) override;
-	void setIntegerInput(std::string name, int value, bool iterateAfter, bool sendNow) override;
-	void setStringInput(std::string name, std::string value, bool iterateAfter, bool sendNow) override;
-	double next_occuring_event(double now) override;
-	void registerEvent(bool (*condition)(std::vector<std::string>),
-			void (*handleEvent)(std::vector<std::string>),
-			std::vector<std::string> params) override;
-	void deleteEvents() override;
-
-};
-
-class FMIPlugin{
-
-public:
 	FMIPlugin();
 	~FMIPlugin();
-	static FMUModel* getFMU(std::string name);
-	static void addFMUCS(std::string fmu_uri, std::string fmu_name, const double stepSize,
-			std::vector<std::string> *initRealInputNames, std::vector<double> *initRealInputVals,
-			std::vector<std::string> *initIntInputNames, std::vector<int> *initIntInputVals,
-			std::vector<std::string> *initBoolInputNames, std::vector<bool> *initBoolInputVals,
-			std::vector<std::string> *initStringInputNames, std::vector<std::string> *initStringInputVals,
-			std::vector<std::string> *realOutputNames,
-			std::vector<std::string> *intOutputNames,
-			std::vector<std::string> *boolOutputNames,
-			std::vector<std::string> *stringOutputNames);
-
-	static void addFMUME(std::string fmu_uri, std::string fmu_name,
-			const double integratorStepSize, const double eventCheckStepSize, const double lookahead, IntegratorType integrator,
-			std::vector<std::string> *initRealInputNames, std::vector<double> *initRealInputVals,
-			std::vector<std::string> *initIntInputNames, std::vector<int> *initIntInputVals,
-			std::vector<std::string> *initBoolInputNames, std::vector<bool> *initBoolInputVals,
-			std::vector<std::string> *initStringInputNames, std::vector<std::string> *initStringInputVals,
-			std::vector<std::string> *realOutputNames,
-			std::vector<std::string> *intOutputNames,
-			std::vector<std::string> *boolOutputNames,
-			std::vector<std::string> *stringOutputNames);
-
-private:
-	static std::unordered_map<std::string,FMUModel*> fmus;
-
+	static MasterFMI *master;
 };
 
 }

@@ -1,0 +1,25 @@
+<?xml version='1.0'?>
+<!DOCTYPE platform SYSTEM "http://simgrid.gforge.inria.fr/simgrid/simgrid.dtd">
+<platform version="4.1">
+  <zone id="AS0" routing="Full">
+    <cluster id="my_cluster_1" prefix="c-" suffix=".rennes" radical="0-128" core="6" speed="21.496E9f" bw="1.25E9Bps" lat="1.0E-4s"
+             router_id="router1">
+        <prop id="watt_per_state" value="97.0:128.0:220.0" />
+   		<prop id="watt_off" value="8" />
+    </cluster>
+
+    <zone id="AS1" routing="None">
+    	<cluster id="my_cluster_2" prefix="c-" suffix=".sophia" radical="0-128" core="6" speed="21.496E9f" bw="1.25E9Bps" lat="1.0E-4s"
+             router_id="router2">
+       		<prop id="watt_per_state" value="97.0:128.0:220.0" />
+   			<prop id="watt_off" value="8" />
+    	</cluster>
+    </zone>
+
+    <link id="link1" bandwidth="10GBps" latency="20ms"/>
+
+    <zoneRoute src="my_cluster_1" dst="AS1" gw_src="router1" gw_dst="router2">
+      <link_ctn id="link1"/>
+    </zoneRoute>
+  </zone>
+</platform>
