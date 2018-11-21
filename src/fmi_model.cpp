@@ -61,7 +61,7 @@ void FMIPlugin::initFMIPlugin(double communication_step){
 
 void FMIPlugin::readyForSimulation(){
 	master->initCouplings();
-	all_existing_models->push_back(master);
+	all_existing_models.push_back(master);
 }
 
 double FMIPlugin::getRealOutput(std::string fmi_name, std::string output_name){

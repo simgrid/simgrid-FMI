@@ -10,10 +10,7 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/tools/cmake/")
 
 # Search for SimGrid
-#find_package(SimGrid REQUIRED)
-set(SimGrid_PATH "/home/mecsyco/Documents/simgrid")
-set(SimGrid_INCLUDE_DIR "${SimGrid_PATH}/include")
-set(SimGrid_LIBRARY "${SimGrid_PATH}/lib/libsimgrid.so")
+find_package(SimGrid REQUIRED)
 
 include_directories("${SimGrid_INCLUDE_DIR}" SYSTEM)
 
@@ -27,9 +24,9 @@ enable_testing()
 
 # Build the library
 add_library(simgrid-fmi SHARED src/fmi_model.cpp)
-find_library(fmilibpath NAMES libfmippim.so ${CMAKE_CURRENT_BINARY_DIR}/deps/fmipp/build/import)
+find_library(fmilibpath NAMES libfmippim.so ${CMAKE_CURRENT_BINARY_DIR}/deps/fmipp/import)
 add_library(fmilib SHARED IMPORTED)
-set_property(TARGET fmilib PROPERTY IMPORTED_LOCATION "${CMAKE_CURRENT_BINARY_DIR}/deps/fmipp/build/import/libfmippim.so")
+set_property(TARGET fmilib PROPERTY IMPORTED_LOCATION "${CMAKE_CURRENT_BINARY_DIR}/deps/fmipp/import/libfmippim.so")
 target_link_libraries(simgrid-fmi fmilib ${SimGrid_LIBRARY})
 
 # Enable Testing
