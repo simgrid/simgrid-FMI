@@ -3,7 +3,7 @@ image: simgrid/unstable
 test-git:
   script:
   - apt-get update
-  - apt-get install -y cmake build-essential libboost-dev git
+  - apt-get install -y cmake build-essential libboost-dev libboost-all-dev git openjdk-8-jdk-headless
   - mkdir -p deps; git clone --depth=1 https://git.code.sf.net/p/fmipp/code deps/fmipp
   - cd deps/fmipp && cmake -DBUILD_SWIG=OFF . && make
   - cmake .
